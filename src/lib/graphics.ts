@@ -5,7 +5,7 @@ import { sound } from "./sound";
 // a canvas. It's wrapped with a view to replacing it with something decent
 
 const canvas = document.getElementById("gamecanvas") as HTMLCanvasElement;
-const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+const ctx = canvas.getContext("2d", { alpha: false }) as CanvasRenderingContext2D;
 let eventListener: Game | undefined;
 let mouseDown = false;
 
@@ -165,6 +165,11 @@ export const graphics = {
 
     // Draw a single tile from a tile set by default at its natural size
     drawTile(tiles: TileSet, x: number, y: number, tile: number, width: number = tiles.tileWidth, height: number = tiles.tileHeight): void {
+        x = Math.floor(x);
+        y = Math.floor(y);
+        width = Math.floor(width);
+        height = Math.floor(height);
+    
         const tw = Math.floor(tiles.image.width / tiles.tileWidth);
         const tx = (tile % tw) * tiles.tileWidth;
         const ty = Math.floor(tile / tw) * tiles.tileHeight;
@@ -223,6 +228,11 @@ export const graphics = {
 
     // draw an image to the canvas 
     drawImage(image: HTMLImageElement, x: number, y: number, width: number, height: number): void {
+        x = Math.floor(x);
+        y = Math.floor(y);
+        width = Math.floor(width);
+        height = Math.floor(height);
+        
         if (image.id) {
             if (width === 0) {
                 return;
@@ -257,6 +267,9 @@ export const graphics = {
 
     // translate the rendering context by a given amount
     translate(x: number, y: number): void {
+        x = Math.floor(x);
+        y = Math.floor(y);
+
         ctx.translate(x, y);
     },
 
