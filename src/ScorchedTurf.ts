@@ -56,6 +56,6 @@ export class ScorchedTurf implements Game {
         
         // give the utility classes a chance to update based on 
         // screen size etc
-        graphics.graphics();
+        graphics.update();
     }
 }

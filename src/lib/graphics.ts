@@ -9,7 +9,6 @@ const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 let eventListener: Game | undefined;
 let mouseDown = false;
 
-
 // a tile set cuts an imag into pieces to be used as sprites
 export interface TileSet {
     image: HTMLImageElement;
@@ -40,7 +39,7 @@ canvas.addEventListener("touchstart", (event) => {
     canvas.focus();
 
     for (const touch of event.changedTouches) {
-        eventListener?.mouseDown(touch.clientX, touch.clientY, touch.identifier);
+        eventListener?.mouseDown(touch.clientX * pixelScale, touch.clientY * pixelScale, touch.identifier);
     }
 
     event.stopPropagation();
@@ -61,7 +60,7 @@ canvas.addEventListener("touchend", (event) => {
     sound.resumeAudioOnInput();
 
     for (const touch of event.changedTouches) {
-        eventListener?.mouseUp(touch.clientX, touch.clientY, touch.identifier);
+        eventListener?.mouseUp(touch.clientX * pixelScale, touch.clientY * pixelScale, touch.identifier);
     }
 
     event.stopPropagation();
@@ -72,7 +71,7 @@ canvas.addEventListener("touchmove", (event) => {
     sound.resumeAudioOnInput();
 
     for (const touch of event.changedTouches) {
-        eventListener?.mouseDrag(touch.clientX, touch.clientY, touch.identifier);
+        eventListener?.mouseDrag(touch.clientX * pixelScale, touch.clientY, touch.identifier);
     }
 
     event.stopPropagation();
@@ -83,7 +82,7 @@ canvas.addEventListener("mousedown", (event) => {
     sound.resumeAudioOnInput();
     canvas.focus();
 
-    eventListener?.mouseDown(event.x, event.y, event.button);
+    eventListener?.mouseDown(event.x * pixelScale, event.y * pixelScale, event.button);
     mouseDown = true;
 
     event.stopPropagation();
@@ -93,7 +92,7 @@ canvas.addEventListener("mousedown", (event) => {
 canvas.addEventListener("mousemove", (event) => {
     sound.resumeAudioOnInput();
     if (mouseDown) {
-        eventListener?.mouseDrag(event.x, event.y, event.button);
+        eventListener?.mouseDrag(event.x * pixelScale,event.y * pixelScale, event.button);
 
         event.stopPropagation();
         event.preventDefault();
@@ -104,10 +103,14 @@ canvas.addEventListener("mouseup", (event) => {
     sound.resumeAudioOnInput();
     mouseDown = false;
 
-    eventListener?.mouseUp(event.x, event.y, event.button);
+    eventListener?.mouseUp(event.x / pixelScale, event.y / pixelScale, event.button);
 
     event.stopPropagation();
 });
+
+const scaledImageCache: Record<string, Record<number, CanvasImageSource>> = {};
+const pixelScale = window.devicePixelRatio; 
+console.log("Pixel scale: " + pixelScale);
 
 export const graphics = {
     // register an event listener for mouse/touch events
@@ -134,6 +137,10 @@ export const graphics = {
             console.log("Failed to load: " + url);
         }
         image.onload = () => {
+            image.id = url;
+            scaledImageCache[image.id] = {};
+            scaledImageCache[image.id][image.width + (image.height * 10000)] = image;
+
             if (track) {
                 resources.resourceLoaded(url);
             }
@@ -205,9 +212,9 @@ export const graphics = {
     },
 
     // give the graphics to do anything it needs to do per frame
-    graphics(): void {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    update(): void {
+        canvas.width = Math.floor(window.innerWidth * pixelScale);
+        canvas.height = Math.floor(window.innerHeight * pixelScale);
     },
 
     // fill a rectangle to the canvas
@@ -218,7 +225,21 @@ export const graphics = {
 
     // draw an image to the canvas 
     drawImage(image: HTMLImageElement, x: number, y: number, width: number, height: number): void {
-        ctx.drawImage(image, x, y, width, height);
+        if (image.id) {
+            if (width === 0) {
+                return;
+            }
+            
+            let cachedScaled = scaledImageCache[image.id][width + (height * 10000)];
+            if (!cachedScaled) {
+                cachedScaled = scaledImageCache[image.id][width + (height * 10000)] = document.createElement("canvas");
+                cachedScaled.width = width;
+                cachedScaled.height = height;
+                cachedScaled.getContext("2d")?.drawImage(image, 0, 0, width, height);
+            }
+
+            ctx.drawImage(cachedScaled, x, y);
+        }
     },
 
     // store the current 'state' of the canvas. This includes transforms, alphas, clips etc
