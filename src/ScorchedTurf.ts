@@ -1,4 +1,4 @@
-import { Game, graphics} from "./lib/graphics";
+import { Game, graphics} from "togl";
 import { GameState, GameUpdate } from "./logic";
 
 export class ScorchedTurf implements Game {

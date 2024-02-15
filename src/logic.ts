@@ -1,7 +1,8 @@
 import type { OnChangeAction, OnChangeEvent, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
+import { PhysicsWorld, physics } from "togl";
 
 export interface GameState {
-  count: number
+  world: PhysicsWorld;
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -25,15 +26,15 @@ declare global {
   const Rune: RuneClient<GameState, GameActions>
 }
 
-export function getCount(game: GameState) {
-  return game.count
-}
-
 Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 4,
   setup: (): GameState => {
-    return { count: 0 }
+    const initialState: GameState = {
+      world: physics.createWorld()
+    }
+
+    return initialState;
   },
   events: {
     playerJoined: () => {
@@ -45,7 +46,6 @@ Rune.initLogic({
   },
   actions: {
     increment: ({ amount }, { game }) => {
-      game.count += amount
     },
   },
 })
