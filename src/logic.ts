@@ -69,18 +69,18 @@ Rune.initLogic({
   }, 
   updatesPerSecond: 30,
   update: (context) => {
-    if (Date.now() - context.game.lastFrameCount > 1000) {
-      context.game.lastFrameCount = Date.now();
-      context.game.fps = context.game.frameCount;
-      context.game.averageFrameTime = context.game.frameTime / context.game.frameCount;
-      context.game.frameCount = 0;
-      context.game.frameTime = 0;
-    }
+    // if (Date.now() - context.game.lastFrameCount > 1000) {
+    //   context.game.lastFrameCount = Date.now();
+    //   context.game.fps = context.game.frameCount;
+    //   context.game.averageFrameTime = context.game.frameTime / context.game.frameCount;
+    //   context.game.frameCount = 0;
+    //   context.game.frameTime = 0;
+    // }
 
-    const start = Date.now();
+    // const start = Date.now();
     physics.worldStep(15, context.game.world);
-    context.game.frameTime += Date.now() - start;
-    context.game.frameCount++;
+    // context.game.frameTime += Date.now() - start;
+    // context.game.frameCount++;
   },
   actions: {
     increment: ({ amount }, { game }) => {
