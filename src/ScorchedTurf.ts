@@ -3,18 +3,18 @@ import { GameState, GameUpdate } from "./logic";
 
 export class ScorchedTurf implements Game {
     game?: GameState;
-    world: PhysicsWorld;
+    localWorld?: PhysicsWorld;
 
     constructor() { 
-        this.world = physics.createWorld();
-        physics.createRectangle(this.world, physics.Vec2(200, 400), 400, 20, 0, 1, 0.3);
-        physics.createRectangle(this.world, physics.Vec2(10, 350), 20, 80, 0, 1, 0.3);
-        physics.createRectangle(this.world, physics.Vec2(380, 350), 20, 80, 0, 1, 0.3);
-        physics.rotateShape(physics.createRectangle(this.world, physics.Vec2(150, 150), 100, 20, 0, 1, 0.3), (Math.PI/8));
-        physics.rotateShape(physics.createRectangle(this.world, physics.Vec2(250, 200), 100, 20, 0, 1, 0.3), -(Math.PI/8));
-        physics.rotateShape(physics.createRectangle(this.world, physics.Vec2(150, 250), 100, 20, 0, 1, 0.3), (Math.PI/8));
-        physics.rotateShape(physics.createRectangle(this.world, physics.Vec2(250, 300), 100, 20, 0, 1, 0.3), -(Math.PI/8));
-        physics.createCircle(this.world,  physics.Vec2(150, 100), 10, 1, 1, 1);
+        this.localWorld = physics.createWorld();
+        physics.createRectangle(this.localWorld, physics.Vec2(200, 400), 400, 20, 0, 1, 0.3);
+        physics.createRectangle(this.localWorld, physics.Vec2(10, 350), 20, 80, 0, 1, 0.3);
+        physics.createRectangle(this.localWorld, physics.Vec2(380, 350), 20, 80, 0, 1, 0.3);
+        physics.rotateShape(physics.createRectangle(this.localWorld, physics.Vec2(150, 150), 100, 20, 0, 1, 0.3), (Math.PI/8));
+        physics.rotateShape(physics.createRectangle(this.localWorld, physics.Vec2(250, 200), 100, 20, 0, 1, 0.3), -(Math.PI/8));
+        physics.rotateShape(physics.createRectangle(this.localWorld, physics.Vec2(150, 250), 100, 20, 0, 1, 0.3), (Math.PI/8));
+        physics.rotateShape(physics.createRectangle(this.localWorld, physics.Vec2(250, 300), 100, 20, 0, 1, 0.3), -(Math.PI/8));
+        physics.createCircle(this.localWorld,  physics.Vec2(150, 100), 10, 1, 1, 1);
     }
 
     start(): void {
@@ -26,12 +26,7 @@ export class ScorchedTurf implements Game {
             },
         });
 
-        // register ourselves as the input listener so
-        // we get nofified of mouse presses
-        console.log("Start rendering");
-
         graphics.startRendering(this);
-        console.log("Start rendering done");
     }
 
 
@@ -65,10 +60,19 @@ export class ScorchedTurf implements Game {
     }
 
     render(): void {
+        let world: PhysicsWorld | undefined;
+
+        // run the world from the server
         if (this.game) {
-            physics.worldStep(60, this.world);
+            world = this.game.world;
+        }
+        // run the local world
+        // world = this.localWorld;
+        // physics.worldStep(60, world);
+
+        if (world) {
             graphics.fillRect(0, 0, graphics.width(), graphics.height(), "black");
-            const objects = this.world.objects;
+            const objects = world.objects;
             for (let i = objects.length; i--;) {
                 // Draw
                 // ----
@@ -90,8 +94,10 @@ export class ScorchedTurf implements Game {
                 graphics.pop();
             }
 
-            graphics.drawText(0, 12, "FPS: " + this.game.fps, 12, "white");
-            graphics.drawText(0, 24, "AFT: " + Math.ceil(this.game.averageFrameTime), 12, "white");
+            if (this.game) {
+                graphics.drawText(0, 12, "FPS: " + this.game.fps, 12, "white");
+                graphics.drawText(0, 24, "AFT: " + Math.ceil(this.game.averageFrameTime), 12, "white");
+            }
         }
     }
 }
