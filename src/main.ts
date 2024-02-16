@@ -1,8 +1,10 @@
 import { ScorchedTurf } from "./ScorchedTurf";
-import { physics } from "./lib/physics";
+
+console.log("bootstrap");
 
 // Simple game bootstrap
 const game = new ScorchedTurf();
 game.start();
 
-physics.startDemoScene(document.getElementById("a") as HTMLCanvasElement);
+// graphics.update();
+// physics.startDemoScene(document.getElementById("gamecanvas") as HTMLCanvasElement);
