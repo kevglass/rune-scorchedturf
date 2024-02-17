@@ -1,11 +1,17 @@
-import { Game, PhysicsWorld, graphics, physics } from "togl";
+import { Game, GameFont, PhysicsWorld, RendererType, graphics, physics } from "togl";
 import { GameState, GameUpdate } from "./logic";
 
 export class ScorchedTurf implements Game {
     game?: GameState;
     localWorld?: PhysicsWorld;
 
+    font12white: GameFont;
+    
     constructor() { 
+        graphics.init(RendererType.WEBGL, true);
+
+        this.font12white = graphics.generateFont(12, "white");
+        
         this.localWorld = physics.createWorld();
         physics.createRectangle(this.localWorld, physics.Vec2(200, 400), 400, 20, 0, 1, 0.3);
         physics.createRectangle(this.localWorld, physics.Vec2(10, 350), 20, 80, 0, 1, 0.3);
@@ -83,7 +89,10 @@ export class ScorchedTurf implements Game {
 
                 // Circle
                 if (!objects[i].type) {
-                    graphics.fillCircle(0, 0, objects[i].bounds, "white");
+
+                    // TODO - use sprite
+                    graphics.fillRect(-objects[i].bounds, -objects[i].bounds, objects[i].bounds*2, objects[i].bounds*2,  "white");
+                    //graphics.fillCircle(0, 0, objects[i].bounds, "white");
                 }
 
                 // Rectangle
@@ -92,11 +101,6 @@ export class ScorchedTurf implements Game {
                 }
 
                 graphics.pop();
-            }
-
-            if (this.game) {
-                graphics.drawText(0, 12, "FPS: " + this.game.fps, 12, "white");
-                graphics.drawText(0, 24, "AFT: " + Math.ceil(this.game.averageFrameTime), 12, "white");
             }
         }
     }
