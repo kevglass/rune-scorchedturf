@@ -19,8 +19,8 @@ function parseSVGTransform(a: any) {
   return b;
 }
 
-export async function loadCourse(name: string): Promise<PhysicsWorld> {
-  const xml = await resources.loadText(ASSETS[name]);
+export function loadCourse(name: string): PhysicsWorld {
+  const xml = resources.loadTextSync(ASSETS[name]);
   const parser = new DOMParser();
   const document = parser.parseFromString(xml, "text/xml");
 
@@ -77,29 +77,17 @@ declare global {
   const Rune: RuneClient<GameState, GameActions>
 }
 
-function createLevel(state: GameState): void {
-  physics.createRectangle(state.world, physics.Vec2(200, 400), 400, 20, 0, 1, 0);
-  physics.createRectangle(state.world, physics.Vec2(10, 350), 20, 80, 0, 1, 0);
-  physics.createRectangle(state.world, physics.Vec2(380, 350), 20, 80, 0, 1, 0);
-  physics.rotateShape(physics.createRectangle(state.world, physics.Vec2(150, 150), 100, 20, 0, 1, 0.3), (Math.PI / 8));
-  physics.rotateShape(physics.createRectangle(state.world, physics.Vec2(250, 200), 100, 20, 0, 1, 0.3), -(Math.PI / 8));
-  physics.rotateShape(physics.createRectangle(state.world, physics.Vec2(150, 250), 100, 20, 0, 1, 0.3), (Math.PI / 8));
-  physics.rotateShape(physics.createRectangle(state.world, physics.Vec2(250, 300), 100, 20, 0, 1, 0.3), -(Math.PI / 8));
-  physics.createCircle(state.world, physics.Vec2(150, 100), 10, 1, 1, 1);
-}
-
-
 async function start(): Promise<void> {
   await resolveAllAssetImports();
-  const world = await loadCourse("course1.svg");
-  startRune(world);
+  startRune();
 }
 
-function startRune(world: PhysicsWorld) {
+function startRune() {
   Rune.initLogic({
     minPlayers: 1,
     maxPlayers: 4,
     setup: (): GameState => {
+      const world = loadCourse("course1.svg");
       const initialState: GameState = {
         world: world,
         frameTime: 0,
@@ -109,7 +97,6 @@ function startRune(world: PhysicsWorld) {
         averageFrameTime: 0
       }
 
-      createLevel(initialState);
       return initialState;
     },
     events: {
@@ -131,7 +118,7 @@ function startRune(world: PhysicsWorld) {
       // }
 
       // const start = Date.now();
-      // physics.worldStep(15, context.game.world);
+      physics.worldStep(15, context.game.world);
       // context.game.frameTime += Date.now() - start;
       // context.game.frameCount++;
     },

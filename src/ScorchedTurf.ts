@@ -15,16 +15,6 @@ export class ScorchedTurf implements Game {
     constructor() {
         graphics.init(RendererType.WEBGL, false);
 
-        this.localWorld = physics.createWorld();
-        physics.createRectangle(this.localWorld, physics.Vec2(200, 400), 400, 20, 0, 1, 0.3);
-        physics.createRectangle(this.localWorld, physics.Vec2(10, 350), 20, 80, 0, 1, 0.3);
-        physics.createRectangle(this.localWorld, physics.Vec2(380, 350), 20, 80, 0, 1, 0.3);
-        // physics.rotateShape(physics.createRectangle(this.localWorld, physics.Vec2(150, 150), 100, 20, 0, 1, 0.3), (Math.PI / 8));
-        // physics.rotateShape(physics.createRectangle(this.localWorld, physics.Vec2(250, 200), 100, 20, 0, 1, 0.3), -(Math.PI / 8));
-        // physics.rotateShape(physics.createRectangle(this.localWorld, physics.Vec2(150, 250), 100, 20, 0, 1, 0.3), (Math.PI / 8));
-        // physics.rotateShape(physics.createRectangle(this.localWorld, physics.Vec2(250, 300), 100, 20, 0, 1, 0.3), -(Math.PI / 8));
-        physics.createCircle(this.localWorld, physics.Vec2(150, 100), 10, 1, 1, 1);
-
         resolveAllAssetImports().then(() => {
             this.font12white = graphics.generateFont(12, "white");
 
@@ -32,9 +22,7 @@ export class ScorchedTurf implements Game {
             this.background = graphics.loadImage(ASSETS["background.png"]);
             this.wood = graphics.loadTileSet(ASSETS["wood.png"], 15, 15);
 
-            loadCourse("course1.svg").then((world) => {
-                this.localWorld = world;
-            });
+            this.localWorld = loadCourse("course1.svg");
         });
     }
 
@@ -79,7 +67,6 @@ export class ScorchedTurf implements Game {
     resourcesLoaded(): void {
         // do nothing
         this.assetsLoaded = true;
-        console.log("ASSETS LOADED");
     }
 
     ninePatch(tiles: TileSet, x: number, y: number, width: number, height: number) {
@@ -99,15 +86,18 @@ export class ScorchedTurf implements Game {
         if (!this.assetsLoaded) {
             return;
         }
+        if (!this.game) {
+            return;
+        }
         let world: PhysicsWorld | undefined;
 
         // run the world from the server
         if (this.game) {
-            // world = this.game.world;
+            world = this.game.world;
         }
         // run the local world
-        world = this.localWorld;
-        physics.worldStep(60, world!);
+        // world = this.localWorld;
+        // physics.worldStep(60, world!);
 
         if (world) {
             graphics.drawImage(this.background, 0, 0, (graphics.height() / this.background.height) * this.background.width, graphics.height());

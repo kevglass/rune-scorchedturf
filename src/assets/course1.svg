@@ -1,11 +1,14 @@
 <svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
  <g>
   <title>Layer 1</title>
-  <rect transform="rotate(-19 109.38 215.89)" stroke="#000" id="svg_1" height="23.60458" width="76.21315" y="204.08748" x="71.27301" fill="#fff"/>
-  <rect transform="rotate(14 236.352 216.009)" stroke="#000" id="svg_2" height="22.97874" width="106.42567" y="204.51934" x="183.13882" fill="#fff"/>
-  <rect id="svg_3" height="22.97874" width="326.43388" y="297.8323" x="31.13667" fill="#fff" stroke="#000"/>
-  <rect fill="#fff" stroke="#000" x="351.5" y="185" width="25" height="151" id="svg_4" transform="rotate(13.7995 364 260.5)"/>
-  <rect fill="#fff" stroke="#000" x="8.5" y="188" width="25" height="151" id="svg_5" transform="rotate(-18.4007 21 263.5)"/>
+  <rect transform="rotate(-19 120.38 219.89)" stroke="#000" id="svg_1" height="23.60458" width="76.21315" y="208.08748" x="82.27301" fill="#fff"/>
+  <rect transform="rotate(14 237.352 215.009)" stroke="#000" id="svg_2" height="22.97874" width="106.42567" y="203.51934" x="184.13882" fill="#fff"/>
+  <rect id="svg_3" height="22.97874" width="326.43388" y="506.8323" x="37.13667" fill="#fff" stroke="#000"/>
+  <rect transform="rotate(5.44323 374.112 351.772)" stroke="#000" fill="#fff" x="361.61215" y="182.5775" width="25" height="338.38995" id="svg_4"/>
+  <rect transform="rotate(-5.31127 30.5791 355.783)" stroke="#000" fill="#fff" x="18.07913" y="187.60208" width="25" height="336.36157" id="svg_5"/>
+  <rect transform="rotate(14 90.2938 307.241)" stroke="#000" id="svg_6" height="23.45737" width="106.42567" y="295.51215" x="37.081" fill="#fff"/>
+  <rect transform="rotate(-32.9152 202.352 373.009)" stroke="#000" id="svg_7" height="22.97874" width="106.42567" y="361.51934" x="149.13882" fill="#fff"/>
+  <rect transform="rotate(14 105.352 451.009)" stroke="#000" id="svg_8" height="22.97874" width="106.42567" y="439.51934" x="52.13882" fill="#fff"/>
  </g>
 
 </svg>
