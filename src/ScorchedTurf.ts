@@ -1,10 +1,9 @@
 import { Game, GameFont, GameImage, PhysicsWorld, RendererType, TileSet, graphics, physics, resources } from "togl";
 import { GameState, GameUpdate, loadCourse } from "./logic";
-import { ASSETS, resolveAllAssetImports } from "./lib/util";
+import { ASSETS } from "./lib/util";
 
 export class ScorchedTurf implements Game {
     game?: GameState;
-    localWorld?: PhysicsWorld;
 
     font12white!: GameFont;
     ball!: GameImage;
@@ -15,15 +14,11 @@ export class ScorchedTurf implements Game {
     constructor() {
         graphics.init(RendererType.WEBGL, false);
 
-        resolveAllAssetImports().then(() => {
-            this.font12white = graphics.generateFont(12, "white");
+        this.font12white = graphics.generateFont(12, "white");
 
-            this.ball = graphics.loadImage(ASSETS["ball.png"]);
-            this.background = graphics.loadImage(ASSETS["background.png"]);
-            this.wood = graphics.loadTileSet(ASSETS["wood.png"], 15, 15);
-
-            this.localWorld = loadCourse("course1.svg");
-        });
+        this.ball = graphics.loadImage(ASSETS["ball.png"]);
+        this.background = graphics.loadImage(ASSETS["background.png"]);
+        this.wood = graphics.loadTileSet(ASSETS["wood.png"], 15, 15);
     }
 
     start(): void {

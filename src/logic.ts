@@ -1,6 +1,6 @@
 import type { OnChangeAction, OnChangeEvent, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
 import { PhysicsWorld, physics, resources } from "togl";
-import { ASSETS, resolveAllAssetImports } from "./lib/util";
+import { ASSETS } from "./lib/util";
 
 const TO_RADIANS = Math.PI / 180;
 
@@ -77,56 +77,47 @@ declare global {
   const Rune: RuneClient<GameState, GameActions>
 }
 
-async function start(): Promise<void> {
-  await resolveAllAssetImports();
-  startRune();
-}
+Rune.initLogic({
+  minPlayers: 1,
+  maxPlayers: 4,
+  setup: (): GameState => {
+    const world = loadCourse("course1.svg");
+    const initialState: GameState = {
+      world: world,
+      frameTime: 0,
+      frameCount: 0,
+      fps: 0,
+      lastFrameCount: 0,
+      averageFrameTime: 0
+    }
 
-function startRune() {
-  Rune.initLogic({
-    minPlayers: 1,
-    maxPlayers: 4,
-    setup: (): GameState => {
-      const world = loadCourse("course1.svg");
-      const initialState: GameState = {
-        world: world,
-        frameTime: 0,
-        frameCount: 0,
-        fps: 0,
-        lastFrameCount: 0,
-        averageFrameTime: 0
-      }
+    return initialState;
+  },
+  events: {
+    playerJoined: () => {
+      // do nothing
+    },
+    playerLeft: () => {
+      // do nothing
+    },
+  },
+  updatesPerSecond: 30,
+  update: (context) => {
+    // if (Date.now() - context.game.lastFrameCount > 1000) {
+    //   context.game.lastFrameCount = Date.now();
+    //   context.game.fps = context.game.frameCount;
+    //   context.game.averageFrameTime = context.game.frameTime / context.game.frameCount;
+    //   context.game.frameCount = 0;
+    //   context.game.frameTime = 0;
+    // }
 
-      return initialState;
+    // const start = Date.now();
+    physics.worldStep(15, context.game.world);
+    // context.game.frameTime += Date.now() - start;
+    // context.game.frameCount++;
+  },
+  actions: {
+    increment: ({ amount }, { game }) => {
     },
-    events: {
-      playerJoined: () => {
-        // do nothing
-      },
-      playerLeft: () => {
-        // do nothing
-      },
-    },
-    updatesPerSecond: 30,
-    update: (context) => {
-      // if (Date.now() - context.game.lastFrameCount > 1000) {
-      //   context.game.lastFrameCount = Date.now();
-      //   context.game.fps = context.game.frameCount;
-      //   context.game.averageFrameTime = context.game.frameTime / context.game.frameCount;
-      //   context.game.frameCount = 0;
-      //   context.game.frameTime = 0;
-      // }
-
-      // const start = Date.now();
-      physics.worldStep(15, context.game.world);
-      // context.game.frameTime += Date.now() - start;
-      // context.game.frameCount++;
-    },
-    actions: {
-      increment: ({ amount }, { game }) => {
-      },
-    },
-  })
-}
-
-start();
+  },
+})
