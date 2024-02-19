@@ -78,7 +78,7 @@ Rune.initLogic({
     // }
 
     // const start = Date.now();
-    physics.worldStep(15, context.game.world);
+    // physics.worldStep(15, context.game.world);
     // context.game.frameTime += Date.now() - start;
     // context.game.frameCount++;
   },
