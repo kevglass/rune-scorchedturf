@@ -1,23 +1,6 @@
 import { Game, GameFont, GameImage, PhysicsWorld, RendererType, TileSet, graphics, physics, resources } from "togl";
-import { GameState, GameUpdate } from "./logic";
+import { GameState, GameUpdate, loadCourse } from "./logic";
 import { ASSETS, resolveAllAssetImports } from "./lib/util";
-
-const TO_RADIANS = Math.PI / 180;
-
-function parseSVGTransform(a: any) {
-    if (!a) {
-        return {};
-    }
-
-    a = a.replaceAll(" ", ",");
-    console.log(a);
-    const b: Record<string, number[]> = {};
-    for (var i in a = a.match(/(\w+\((\-?\d+\.?\d*e?\-?\d*,?)+\))+/g)) {
-        var c = a[i].match(/[\w\.\-]+/g);
-        b[c.shift()] = c.map((i: string) => Number.parseFloat(i));
-    }
-    return b;
-}
 
 export class ScorchedTurf implements Game {
     game?: GameState;
@@ -49,36 +32,10 @@ export class ScorchedTurf implements Game {
             this.background = graphics.loadImage(ASSETS["background.png"]);
             this.wood = graphics.loadTileSet(ASSETS["wood.png"], 15, 15);
 
-            this.loadCourse("course1.svg");
+            loadCourse("course1.svg").then((world) => {
+                this.localWorld = world;
+            });
         });
-    }
-
-    async loadCourse(name: string): Promise<void> {
-        const xml = await resources.loadText(ASSETS[name]);
-        const parser = new DOMParser();
-        const document = parser.parseFromString(xml, "text/xml");
-
-        this.localWorld = physics.createWorld();
-        const root = document.getElementsByTagName("g")[0];
-
-        let index = 0;
-        for (const rect of root.getElementsByTagName("rect")) {
-            const height = Math.floor(Number.parseFloat(rect.getAttribute("height")!));
-            const width = Math.floor(Number.parseFloat(rect.getAttribute("width")!));
-            const cx = Math.floor(Number.parseFloat(rect.getAttribute("x")!) + (width / 2));
-            const cy = Math.floor(Number.parseFloat(rect.getAttribute("y")!) + (height / 2));
-
-            const transform = parseSVGTransform(rect.getAttribute("transform"));
-            const shape = physics.createRectangle(this.localWorld, physics.Vec2(cx, cy), width, height, 0, 1, 0.5, false);
-            console.log(cx,cy);
-            if (transform.rotate) {
-                physics.rotateShape(shape, transform.rotate[0] * TO_RADIANS);
-            }
-
-            index++;
-        }
-        physics.createCircle(this.localWorld, physics.Vec2(130, 100), 10, 1, 1, 1);
-
     }
 
     start(): void {
