@@ -118,11 +118,11 @@ Rune.initLogic({
   update: (context) => {
     const before = Date.now();
     // this runs really slow - cause the proxies have been remove 12-20ms
-    physics.worldStep(15, context.game.world); 
+    // physics.worldStep(15, context.game.world); 
     // this runs really quick - cause the proxies have been removed 0-1ms
-    // const worldCopy = JSON.parse(JSON.stringify(context.game.world));
-    // physics.worldStep(15, worldCopy); 
-    // context.game.world = worldCopy;
+    const worldCopy = JSON.parse(JSON.stringify(context.game.world));
+    physics.worldStep(15, worldCopy); 
+    context.game.world = worldCopy;
     const after = Date.now();
   },
   actions: {
