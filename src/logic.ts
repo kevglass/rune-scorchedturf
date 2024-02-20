@@ -1,9 +1,10 @@
 import type { OnChangeAction, OnChangeEvent, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
-import { PhysicsWorld, physics, resources } from "togl";
+import { PhysicsWorld, physics, resources, Body } from "togl";
 import { ASSETS } from "./lib/util";
 
 const TO_RADIANS = Math.PI / 180;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSVGTransform(a: any) {
   if (!a) {
     return {};
@@ -11,8 +12,8 @@ function parseSVGTransform(a: any) {
 
   a = a.replaceAll(" ", ",");
   const b: Record<string, number[]> = {};
-  for (var i in a = a.match(/(\w+\((\-?\d+\.?\d*e?\-?\d*,?)+\))+/g)) {
-    var c = a[i].match(/[\w\.\-]+/g);
+  for (const i in a = a.match(/(\w+\((-?\d+\.?\d*e?-?\d*,?)+\))+/g)) {
+    const c = a[i].match(/[\w.-]+/g);
     b[c.shift()] = c.map((i: string) => Number.parseFloat(i));
   }
   return b;
@@ -34,12 +35,12 @@ export function loadCourse(name: string): PhysicsWorld {
   physics.createJoint(world, test1, test2, 1);
 
   let index = 0;
-  let anchor = undefined;
+  let anchor: Body = ball;
   for (const rect of root.getElementsByTagName("rect")) {
-    const height = Math.floor(Number.parseFloat(rect.getAttribute("height")!));
-    const width = Math.floor(Number.parseFloat(rect.getAttribute("width")!));
-    const cx = Math.floor(Number.parseFloat(rect.getAttribute("x")!) + (width / 2));
-    const cy = Math.floor(Number.parseFloat(rect.getAttribute("y")!) + (height / 2));
+    const height = Math.floor(Number.parseFloat(rect.getAttribute("height") ?? "0"));
+    const width = Math.floor(Number.parseFloat(rect.getAttribute("width") ?? "0"));
+    const cx = Math.floor(Number.parseFloat(rect.getAttribute("x") ?? "0") + (width / 2));
+    const cy = Math.floor(Number.parseFloat(rect.getAttribute("y") ?? "0") + (height / 2));
 
     const transform = parseSVGTransform(rect.getAttribute("transform"));
     const body = physics.createRectangle(world, physics.Vec2(cx, cy), width, height, index === 1 ? 1 : 0, 1, 0.5);
@@ -65,39 +66,41 @@ export interface GameState {
   totalFrames: number
 }
 
-interface Stats {
-  maxArrayLength: number;
-  maxKeysInObject: number;
-  nestingDepth: number;
-}
+// interface Stats {
+//   maxArrayLength: number;
+//   maxKeysInObject: number;
+//   nestingDepth: number;
+// }
 
-function getStats(object: any, stats: Stats, depth: number) {
-  stats.nestingDepth = Math.max(depth, stats.nestingDepth);
+// // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// function getStats(object: any, stats: Stats, depth: number) {
+//   stats.nestingDepth = Math.max(depth, stats.nestingDepth);
 
-  if (Array.isArray(object)) {
-    stats.maxArrayLength = Math.max(stats.maxArrayLength, object.length);
-    for (const obj of object) {
-      getStats(obj, stats, depth);
-    }
-  } else if (typeof object === 'object' && object !== null) {
-    stats.maxKeysInObject = Object.keys(object).length;
-    for (const key in object) {
-      getStats(object[key], stats, depth+1);
-    }
-  }
-}
+//   if (Array.isArray(object)) {
+//     stats.maxArrayLength = Math.max(stats.maxArrayLength, object.length);
+//     for (const obj of object) {
+//       getStats(obj, stats, depth);
+//     }
+//   } else if (typeof object === 'object' && object !== null) {
+//     stats.maxKeysInObject = Object.keys(object).length;
+//     for (const key in object) {
+//       getStats(object[key], stats, depth+1);
+//     }
+//   }
+// }
 
-function mutativeRelatedStats(object: any) {
-  const stats: Stats = {
-    maxArrayLength: 0,
-    maxKeysInObject: 0,
-    nestingDepth: 0
-  }
+// // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// function mutativeRelatedStats(object: any) {
+//   const stats: Stats = {
+//     maxArrayLength: 0,
+//     maxKeysInObject: 0,
+//     nestingDepth: 0
+//   }
   
-  getStats(object, stats, 0);
+//   getStats(object, stats, 0);
 
-  return JSON.stringify(stats);
-}
+//   return JSON.stringify(stats);
+// }
 
 // Quick type so I can pass the complex object that is the 
 // Rune onChange blob around without ugliness. 
@@ -113,7 +116,7 @@ export type GameUpdate = {
 };
 
 type GameActions = {
-  jump: (params: {}) => void
+  jump: () => void
 }
 
 declare global {
@@ -124,7 +127,7 @@ Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 4,
   setup: (): GameState => {
-    const world = physics.createDemoScene(10, true); //loadCourse("course1.svg");
+    const world = physics.createDemoScene(30, true); //loadCourse("course1.svg");
     const initialState: GameState = {
       world: world,
       totalFrames: 0
@@ -144,10 +147,12 @@ Rune.initLogic({
   update: (context) => {
     context.game.totalFrames++;
 
-    if (context.game.totalFrames === 300) {
-      console.log(JSON.stringify(context.game.world));
-      console.log(mutativeRelatedStats(context.game.world));
-    }
+    // // Dump out some debug to see if theres something 
+    // // hard for mutative to deal with
+    // if (context.game.totalFrames === 300) {
+    //   console.log(JSON.stringify(context.game.world));
+    //   console.log(mutativeRelatedStats(context.game.world));
+    // }
 
     // this runs really slow - cause the proxies have been remove 12-20ms
     // physics.worldStep(15, context.game.world); 
@@ -158,7 +163,7 @@ Rune.initLogic({
 
   },
   actions: {
-    jump: ({}, { game }) => {
+    jump: (params, { game }) => {
       const ball = game.world.bodies.find(b => b.id === 1);
       if (ball) {
         ball.velocity.y = -100;
