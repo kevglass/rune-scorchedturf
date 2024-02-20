@@ -10,7 +10,6 @@ function parseSVGTransform(a: any) {
   }
 
   a = a.replaceAll(" ", ",");
-  console.log(a);
   const b: Record<string, number[]> = {};
   for (var i in a = a.match(/(\w+\((\-?\d+\.?\d*e?\-?\d*,?)+\))+/g)) {
     var c = a[i].match(/[\w\.\-]+/g);
@@ -43,7 +42,7 @@ export function loadCourse(name: string): PhysicsWorld {
     const cy = Math.floor(Number.parseFloat(rect.getAttribute("y")!) + (height / 2));
 
     const transform = parseSVGTransform(rect.getAttribute("transform"));
-    const body = physics.createRectangle(world, physics.Vec2(cx, cy), width, height, 0, 1, 0.5);
+    const body = physics.createRectangle(world, physics.Vec2(cx, cy), width, height, index === 1 ? 1 : 0, 1, 0.5);
     if (transform.rotate) {
       physics.rotateShape(body, transform.rotate[0] * TO_RADIANS);
     }
@@ -95,7 +94,7 @@ Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 4,
   setup: (): GameState => {
-    const world = loadCourse("course1.svg");
+    const world = physics.createDemoScene(20, true); //loadCourse("course1.svg");
     const initialState: GameState = {
       world: world,
       frameTime: 0,
@@ -117,7 +116,14 @@ Rune.initLogic({
   },
   updatesPerSecond: 30,
   update: (context) => {
-    physics.worldStep(15, context.game.world);
+    const before = Date.now();
+    // this runs really slow - cause the proxies have been remove 12-20ms
+    physics.worldStep(15, context.game.world); 
+    // this runs really quick - cause the proxies have been removed 0-1ms
+    // const worldCopy = JSON.parse(JSON.stringify(context.game.world));
+    // physics.worldStep(15, worldCopy); 
+    // context.game.world = worldCopy;
+    const after = Date.now();
   },
   actions: {
     jump: ({}, { game }) => {

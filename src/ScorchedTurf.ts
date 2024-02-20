@@ -10,11 +10,12 @@ export class ScorchedTurf implements Game {
     background!: GameImage;
     wood!: TileSet;
     assetsLoaded = false;
-
+    localWorld?: PhysicsWorld;
+    localPhysics = false;
     constructor() {
         graphics.init(RendererType.WEBGL, false);
 
-        this.font12white = graphics.generateFont(12, "white");
+        this.font12white = graphics.generateFont(12, "black");
 
         this.ball = graphics.loadImage(ASSETS["ball.png"]);
         this.background = graphics.loadImage(ASSETS["background.png"]);
@@ -75,7 +76,7 @@ export class ScorchedTurf implements Game {
         graphics.drawTile(tiles, x, y, 0);
         graphics.drawTile(tiles, x + width - tiles.tileWidth, y, 2);
         graphics.drawTile(tiles, x, y + height - tiles.tileHeight, 6);
-        graphics.drawTile(tiles, x + width - tiles.tileWidth, y+ height - tiles.tileHeight, 8);
+        graphics.drawTile(tiles, x + width - tiles.tileWidth, y + height - tiles.tileHeight, 8);
     }
 
     render(): void {
@@ -85,25 +86,37 @@ export class ScorchedTurf implements Game {
         if (!this.game) {
             return;
         }
-        let world: PhysicsWorld | undefined;
+        graphics.drawImage(this.background, 0, 0, (graphics.height() / this.background.height) * this.background.width, graphics.height());
 
         // run the world from the server
         if (this.game) {
-            world = this.game.world;
+            this.drawWorld(this.game.world);
         }
-        // run the local world
-        // world = this.localWorld;
-        // physics.worldStep(60, world!);
 
+        // run the local world
+        if (this.localPhysics) {
+            if (!this.localWorld) {
+                this.localWorld = JSON.parse(JSON.stringify(this.game.world));
+            }
+            if (this.localWorld) {
+                const before = Date.now();
+                physics.worldStep(15, this.localWorld);
+                const after = Date.now();
+                console.log(after-before);
+                this.drawWorld(this.localWorld);
+            }
+        }
+    }
+
+    drawWorld(world: PhysicsWorld) {
         if (world) {
-            graphics.drawImage(this.background, 0, 0, (graphics.height() / this.background.height) * this.background.width, graphics.height());
             for (const body of world.bodies) {
                 // Draw
                 // ----
                 graphics.push();
 
-                graphics.translate(body.center.x, body.center.y);
-                graphics.rotate(body.angle);
+                graphics.translate(body.averageCenter.x, body.averageCenter.y);
+                graphics.rotate(Math.floor(body.averageAngle * 10) / 10);
 
                 // Circle
                 if (!body.type) {
@@ -117,8 +130,9 @@ export class ScorchedTurf implements Game {
 
                 // Rectangle
                 else {
-                    this.ninePatch(this.wood, -body.width / 2, -body.height / 2, body.width, body.height);
-                    // graphics.fillRect(-body.width / 2, -body.height / 2, body.width, body.height, "green");
+                    let width = body.width + 2;
+                    let height = body.height + 2;
+                    this.ninePatch(this.wood, -width / 2, -height / 2, width, height);
                 }
 
                 graphics.pop();
