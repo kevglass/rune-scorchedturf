@@ -54,9 +54,8 @@ export function loadCourse(name: string): PhysicsWorld {
     index++;
   }
   if (anchor) {
-    const test3 = physics.createCircle(world, physics.Vec2(160, 210), 10, 1, 1, 1);
+    const test3 = physics.createCircle(world, physics.Vec2(165, 220), 10, 1, 1, 1);
     physics.createJoint(world, anchor, test3, 1);
-
   }
 
   return world;
