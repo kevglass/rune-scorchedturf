@@ -27,7 +27,15 @@ export function loadCourse(name: string): PhysicsWorld {
   const world = physics.createWorld();
   const root = document.getElementsByTagName("g")[0];
 
+  const ball = physics.createCircle(world, physics.Vec2(140, 100), 10, 1, 1, 1);
+  physics.createCircle(world, physics.Vec2(200, 100), 10, 1, 1, 1);
+  
+  const test1 = physics.createCircle(world, physics.Vec2(170, 50), 10, 1, 1, 1);
+  const test2 = physics.createCircle(world, physics.Vec2(200, 50), 10, 1, 1, 1);
+  physics.createJoint(world, test1, test2, 1);
+
   let index = 0;
+  let anchor = undefined;
   for (const rect of root.getElementsByTagName("rect")) {
     const height = Math.floor(Number.parseFloat(rect.getAttribute("height")!));
     const width = Math.floor(Number.parseFloat(rect.getAttribute("width")!));
@@ -35,14 +43,21 @@ export function loadCourse(name: string): PhysicsWorld {
     const cy = Math.floor(Number.parseFloat(rect.getAttribute("y")!) + (height / 2));
 
     const transform = parseSVGTransform(rect.getAttribute("transform"));
-    const shape = physics.createRectangle(world, physics.Vec2(cx, cy), width, height, 0, 1, 0.5, false);
+    const body = physics.createRectangle(world, physics.Vec2(cx, cy), width, height, 0, 1, 0.5);
     if (transform.rotate) {
-      physics.rotateShape(shape, transform.rotate[0] * TO_RADIANS);
+      physics.rotateShape(body, transform.rotate[0] * TO_RADIANS);
+    }
+    if (index === 0) {
+      anchor = body;
     }
 
     index++;
   }
-  physics.createCircle(world, physics.Vec2(130, 100), 10, 1, 1, 1);
+  if (anchor) {
+    const test3 = physics.createCircle(world, physics.Vec2(160, 210), 10, 1, 1, 1);
+    physics.createJoint(world, anchor, test3, 1);
+
+  }
 
   return world;
 }
@@ -70,7 +85,7 @@ export type GameUpdate = {
 };
 
 type GameActions = {
-  increment: (params: { amount: number }) => void
+  jump: (params: {}) => void
 }
 
 declare global {
@@ -103,21 +118,14 @@ Rune.initLogic({
   },
   updatesPerSecond: 30,
   update: (context) => {
-    // if (Date.now() - context.game.lastFrameCount > 1000) {
-    //   context.game.lastFrameCount = Date.now();
-    //   context.game.fps = context.game.frameCount;
-    //   context.game.averageFrameTime = context.game.frameTime / context.game.frameCount;
-    //   context.game.frameCount = 0;
-    //   context.game.frameTime = 0;
-    // }
-
-    // const start = Date.now();
     physics.worldStep(15, context.game.world);
-    // context.game.frameTime += Date.now() - start;
-    // context.game.frameCount++;
   },
   actions: {
-    increment: ({ amount }, { game }) => {
+    jump: ({}, { game }) => {
+      const ball = game.world.bodies.find(b => b.id === 1);
+      if (ball) {
+        ball.velocity.y = -100;
+      }
     },
   },
 })

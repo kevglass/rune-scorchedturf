@@ -41,6 +41,7 @@ export class ScorchedTurf implements Game {
 
     mouseDown(x: number, y: number, index: number): void {
         // do nothing
+        Rune.actions.jump({});
     }
 
     mouseDrag(x: number, y: number, index: number): void {
@@ -96,29 +97,42 @@ export class ScorchedTurf implements Game {
 
         if (world) {
             graphics.drawImage(this.background, 0, 0, (graphics.height() / this.background.height) * this.background.width, graphics.height());
-            const objects = world.objects;
-            for (let i = objects.length; i--;) {
+            for (const body of world.bodies) {
                 // Draw
                 // ----
                 graphics.push();
 
-                graphics.translate(objects[i].center.x, objects[i].center.y);
-                graphics.rotate(objects[i].angle);
+                graphics.translate(body.center.x, body.center.y);
+                graphics.rotate(body.angle);
 
                 // Circle
-                if (!objects[i].type) {
+                if (!body.type) {
 
                     // TODO - use sprite
-                    let size = objects[i].bounds + 1;
+                    let size = body.bounds + 1;
 
                     graphics.drawImage(this.ball, -size, -size, size * 2, size * 2);
-                    //graphics.fillCircle(0, 0, objects[i].bounds, "white");
+                    //graphics.fillCircle(0, 0, body.bounds, "white");
                 }
 
                 // Rectangle
                 else {
-                    this.ninePatch(this.wood, -objects[i].width / 2, -objects[i].height / 2, objects[i].width, objects[i].height);
-                    // graphics.fillRect(-objects[i].width / 2, -objects[i].height / 2, objects[i].width, objects[i].height, "green");
+                    this.ninePatch(this.wood, -body.width / 2, -body.height / 2, body.width, body.height);
+                    // graphics.fillRect(-body.width / 2, -body.height / 2, body.width, body.height, "green");
+                }
+
+                graphics.pop();
+            }
+
+            for (const joint of world.joints) {
+                graphics.push();
+                const bodyA = world.bodies.find(b => b.id === joint.bodyA);
+                const bodyB = world.bodies.find(b => b.id === joint.bodyB);
+                if (bodyA && bodyB) {
+                    const length = physics.lengthVec2(physics.subtractVec2(bodyA.center, bodyB.center));
+                    graphics.translate(bodyA.center.x, bodyA.center.y);
+                    graphics.rotate(Math.atan2(bodyB.center.y - bodyA.center.y, bodyB.center.x - bodyA.center.x));
+                    graphics.fillRect(0, -2, length, 4, "black");
                 }
 
                 graphics.pop();
