@@ -62,11 +62,41 @@ export function loadCourse(name: string): PhysicsWorld {
 
 export interface GameState {
   world: PhysicsWorld;
-  fps: number;
-  frameCount: number;
-  lastFrameCount: number;
-  frameTime: number;
-  averageFrameTime: number;
+  totalFrames: number
+}
+
+interface Stats {
+  maxArrayLength: number;
+  maxKeysInObject: number;
+  nestingDepth: number;
+}
+
+function getStats(object: any, stats: Stats, depth: number) {
+  stats.nestingDepth = Math.max(depth, stats.nestingDepth);
+
+  if (Array.isArray(object)) {
+    stats.maxArrayLength = Math.max(stats.maxArrayLength, object.length);
+    for (const obj of object) {
+      getStats(obj, stats, depth);
+    }
+  } else if (typeof object === 'object' && object !== null) {
+    stats.maxKeysInObject = Object.keys(object).length;
+    for (const key in object) {
+      getStats(object[key], stats, depth+1);
+    }
+  }
+}
+
+function mutativeRelatedStats(object: any) {
+  const stats: Stats = {
+    maxArrayLength: 0,
+    maxKeysInObject: 0,
+    nestingDepth: 0
+  }
+  
+  getStats(object, stats, 0);
+
+  return JSON.stringify(stats);
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -94,14 +124,10 @@ Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 4,
   setup: (): GameState => {
-    const world = physics.createDemoScene(20, true); //loadCourse("course1.svg");
+    const world = physics.createDemoScene(10, true); //loadCourse("course1.svg");
     const initialState: GameState = {
       world: world,
-      frameTime: 0,
-      frameCount: 0,
-      fps: 0,
-      lastFrameCount: 0,
-      averageFrameTime: 0
+      totalFrames: 0
     }
 
     return initialState;
@@ -116,14 +142,20 @@ Rune.initLogic({
   },
   updatesPerSecond: 30,
   update: (context) => {
-    const before = Date.now();
+    context.game.totalFrames++;
+
+    if (context.game.totalFrames === 300) {
+      console.log(JSON.stringify(context.game.world));
+      console.log(mutativeRelatedStats(context.game.world));
+    }
+
     // this runs really slow - cause the proxies have been remove 12-20ms
     // physics.worldStep(15, context.game.world); 
     // this runs really quick - cause the proxies have been removed 0-1ms
-    const worldCopy = JSON.parse(JSON.stringify(context.game.world));
-    physics.worldStep(15, worldCopy); 
-    context.game.world = worldCopy;
-    const after = Date.now();
+    const world = JSON.parse(JSON.stringify(context.game.world));
+    physics.worldStep(15, world); 
+    context.game.world = world;
+
   },
   actions: {
     jump: ({}, { game }) => {
