@@ -17,6 +17,15 @@ function parseSVGTransform(a: any) {
   return b;
 }
 
+export function createTestScene(): physics.PhysicsWorld {
+  const world = physics.createWorld();
+
+  physics.createCircle(world, physics.Vec2(140, 100), 10, 1, 1, 1);
+  physics.createRectangle(world, physics.Vec2(180, 100), 10, 10, 1, 1, 1);
+  
+  return world;
+}
+
 export function loadCourse(name: string): physics.PhysicsWorld {
   const content = ASSETS[name];
   const document = xml.parseXml(content);
@@ -126,7 +135,7 @@ Rune.initLogic({
   maxPlayers: 4,
   setup: (): GameState => {
     // const world = createDemoScene(30, true); 
-    const world = loadCourse("course1.svg");
+    const world = createTestScene(); //loadCourse("course1.svg");
     const initialState: GameState = {
       world: world,
       totalFrames: 0

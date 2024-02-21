@@ -11,7 +11,7 @@ export default defineConfig({
     rune({ logicPath: path.resolve("./src/logic.ts") }),
   ],
   optimizeDeps: {
-    include: ['togl'],
+    include: ['togl', "togl/logic"],
   },
   assetsInclude: ["**/*.svg"],
   build: {
