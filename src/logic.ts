@@ -1,8 +1,6 @@
 import type { OnChangeAction, OnChangeEvent, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
-import { PhysicsWorld, parseXml, worldStep, createWorld, createCircle, Vec2, createJoint, createRectangle, rotateShape, Body } from "togl/logic";
+import { physics, xml } from "togl/logic";
 import { ASSETS } from "./lib/rawassets";
-
-const TO_RADIANS = Math.PI / 180;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSVGTransform(a: any) {
@@ -19,23 +17,23 @@ function parseSVGTransform(a: any) {
   return b;
 }
 
-export function loadCourse(name: string): PhysicsWorld {
+export function loadCourse(name: string): physics.PhysicsWorld {
   const content = ASSETS[name];
-  const document = parseXml(content);
+  const document = xml.parseXml(content);
 
   console.log(document);
-  const world = createWorld();
+  const world = physics.createWorld();
   const root = document.svg.g;
 
-  const ball = createCircle(world, Vec2(140, 100), 10, 1, 1, 1);
-  createCircle(world, Vec2(200, 100), 10, 1, 1, 1);
+  const ball = physics.createCircle(world, physics.Vec2(140, 100), 10, 1, 1, 1);
+  physics.createCircle(world, physics.Vec2(200, 100), 10, 1, 1, 1);
 
-  const test1 = createCircle(world, Vec2(170, 50), 10, 1, 1, 1);
-  const test2 = createCircle(world, Vec2(200, 50), 10, 1, 1, 1);
-  createJoint(world, test1, test2, 1);
+  const test1 = physics.createCircle(world, physics.Vec2(170, 50), 10, 1, 1, 1);
+  const test2 = physics.createCircle(world, physics.Vec2(200, 50), 10, 1, 1, 1);
+  physics.createJoint(world, test1, test2, 1);
 
   let index = 0;
-  let anchor: Body = ball;
+  let anchor: physics.Body = ball;
   for (const rect of root.rect) {
     const height = Math.floor(Number.parseFloat(rect.height ?? "0"));
     const width = Math.floor(Number.parseFloat(rect.width ?? "0"));
@@ -43,9 +41,9 @@ export function loadCourse(name: string): PhysicsWorld {
     const cy = Math.floor(Number.parseFloat(rect.y ?? "0") + (height / 2));
 
     const transform = parseSVGTransform(rect.transform);
-    const body = createRectangle(world, Vec2(cx, cy), width, height, 0, 1, 0.5);
+    const body = physics.createRectangle(world, physics.Vec2(cx, cy), width, height, 0, 1, 0.5);
     if (transform.rotate) {
-      rotateShape(body, transform.rotate[0] * TO_RADIANS);
+      physics.rotateShape(body, transform.rotate[0] *  Math.PI / 180);
     }
     if (index === 0) {
       anchor = body;
@@ -54,15 +52,15 @@ export function loadCourse(name: string): PhysicsWorld {
     index++;
   }
   if (anchor) {
-    const test3 = createCircle(world, Vec2(165, 220), 10, 1, 1, 1);
-    createJoint(world, anchor, test3, 1);
+    const test3 = physics.createCircle(world, physics.Vec2(165, 220), 10, 1, 1, 1);
+    physics.createJoint(world, anchor, test3, 1);
   }
 
   return world;
 }
 
 export interface GameState {
-  world: PhysicsWorld;
+  world: physics.PhysicsWorld;
   totalFrames: number
 }
 
@@ -159,7 +157,7 @@ Rune.initLogic({
     // worldStep(15, context.game.world); 
     // this runs really quick - cause the proxies have been removed 0-1ms
     const world = JSON.parse(JSON.stringify(context.game.world));
-    worldStep(15, world);
+    physics.worldStep(15, world);
     context.game.world = world;
 
   },

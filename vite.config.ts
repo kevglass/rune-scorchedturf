@@ -10,7 +10,13 @@ export default defineConfig({
     qrcode(), // only applies in dev mode
     rune({ logicPath: path.resolve("./src/logic.ts") }),
   ],
+  optimizeDeps: {
+    include: ['togl'],
+  },
   assetsInclude: ["**/*.svg"],
   build: {
+    commonjsOptions: {
+      include: [/togl/],
+    },
   },
 })
