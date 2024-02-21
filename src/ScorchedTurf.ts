@@ -1,6 +1,6 @@
-import { Game, GameFont, GameImage, PhysicsWorld, RendererType, TileSet, graphics, physics, resources } from "togl";
-import { GameState, GameUpdate, loadCourse } from "./logic";
-import { ASSETS } from "./lib/util";
+import { Game, GameFont, GameImage, PhysicsWorld, RendererType, ShapeType, TileSet, drawImage, drawTile, fillRect, generateFont, height, init, lengthVec2, loadImage, loadTileSet, pop, push, rotate, startRendering, subtractVec2, translate, worldStep } from "togl";
+import { GameState, GameUpdate } from "./logic";
+import { ASSETS } from "./lib/assets";
 
 export class ScorchedTurf implements Game {
     game?: GameState;
@@ -13,13 +13,13 @@ export class ScorchedTurf implements Game {
     localWorld?: PhysicsWorld;
     localPhysics = false;
     constructor() {
-        graphics.init(RendererType.WEBGL, false);
+        init(RendererType.WEBGL, false);
 
-        this.font12white = graphics.generateFont(12, "black");
+        this.font12white = generateFont(12, "black");
 
-        this.ball = graphics.loadImage(ASSETS["ball.png"]);
-        this.background = graphics.loadImage(ASSETS["background.png"]);
-        this.wood = graphics.loadTileSet(ASSETS["wood.png"], 15, 15);
+        this.ball = loadImage(ASSETS["ball.png"]);
+        this.background = loadImage(ASSETS["background.png"]);
+        this.wood = loadTileSet(ASSETS["wood.png"], 15, 15);
     }
 
     start(): void {
@@ -31,7 +31,7 @@ export class ScorchedTurf implements Game {
             },
         });
 
-        graphics.startRendering(this);
+        startRendering(this);
     }
 
 
@@ -40,24 +40,24 @@ export class ScorchedTurf implements Game {
         this.game = update.game;
     }
 
-    mouseDown(x: number, y: number, index: number): void {
+    mouseDown(): void {
         // do nothing
-        Rune.actions.jump({});
+        Rune.actions.jump();
     }
 
-    mouseDrag(x: number, y: number, index: number): void {
-        // do nothing
-    }
-
-    mouseUp(x: number, y: number, index: number): void {
-        // do nothing
-
-    }
-    keyDown(key: string): void {
+    mouseDrag(): void {
         // do nothing
     }
 
-    keyUp(key: string): void {
+    mouseUp(): void {
+        // do nothing
+
+    }
+    keyDown(): void {
+        // do nothing
+    }
+
+    keyUp(): void {
         // do nothing
     }
 
@@ -67,16 +67,16 @@ export class ScorchedTurf implements Game {
     }
 
     ninePatch(tiles: TileSet, x: number, y: number, width: number, height: number) {
-        graphics.drawTile(tiles, x, y, 4, width, height);
-        graphics.drawTile(tiles, x, y, 1, width, tiles.tileHeight);
-        graphics.drawTile(tiles, x, y + height - tiles.tileHeight, 7, width, tiles.tileHeight);
-        graphics.drawTile(tiles, x, y, 3, tiles.tileWidth, height);
-        graphics.drawTile(tiles, x + width - tiles.tileWidth, y, 5, tiles.tileWidth, height);
+        drawTile(tiles, x, y, 4, width, height);
+        drawTile(tiles, x, y, 1, width, tiles.tileHeight);
+        drawTile(tiles, x, y + height - tiles.tileHeight, 7, width, tiles.tileHeight);
+        drawTile(tiles, x, y, 3, tiles.tileWidth, height);
+        drawTile(tiles, x + width - tiles.tileWidth, y, 5, tiles.tileWidth, height);
 
-        graphics.drawTile(tiles, x, y, 0);
-        graphics.drawTile(tiles, x + width - tiles.tileWidth, y, 2);
-        graphics.drawTile(tiles, x, y + height - tiles.tileHeight, 6);
-        graphics.drawTile(tiles, x + width - tiles.tileWidth, y + height - tiles.tileHeight, 8);
+        drawTile(tiles, x, y, 0);
+        drawTile(tiles, x + width - tiles.tileWidth, y, 2);
+        drawTile(tiles, x, y + height - tiles.tileHeight, 6);
+        drawTile(tiles, x + width - tiles.tileWidth, y + height - tiles.tileHeight, 8);
     }
 
     render(): void {
@@ -86,7 +86,7 @@ export class ScorchedTurf implements Game {
         if (!this.game) {
             return;
         }
-        graphics.drawImage(this.background, 0, 0, (graphics.height() / this.background.height) * this.background.width, graphics.height());
+        drawImage(this.background, 0, 0, (height() / this.background.height) * this.background.width, height());
 
         // run the world from the server
         if (this.game) {
@@ -100,7 +100,7 @@ export class ScorchedTurf implements Game {
             }
             if (this.localWorld) {
                 const before = Date.now();
-                physics.worldStep(15, this.localWorld);
+                worldStep(15, this.localWorld);
                 const after = Date.now();
                 console.log(after-before);
                 this.drawWorld(this.localWorld);
@@ -113,43 +113,36 @@ export class ScorchedTurf implements Game {
             for (const body of world.bodies) {
                 // Draw
                 // ----
-                graphics.push();
+                push();
 
-                graphics.translate(body.averageCenter.x, body.averageCenter.y);
-                graphics.rotate(Math.floor(body.averageAngle * 10) / 10);
+                translate(body.averageCenter.x, body.averageCenter.y);
+                rotate(Math.floor(body.averageAngle * 10) / 10);
 
-                // Circle
-                if (!body.type) {
+                if (body.type === ShapeType.CIRCLE) {
 
-                    // TODO - use sprite
-                    let size = body.bounds + 1;
-
-                    graphics.drawImage(this.ball, -size, -size, size * 2, size * 2);
-                    //graphics.fillCircle(0, 0, body.bounds, "white");
-                }
-
-                // Rectangle
-                else {
-                    let width = body.width + 2;
-                    let height = body.height + 2;
+                    const size = body.bounds + 1;
+                    drawImage(this.ball, -size, -size, size * 2, size * 2);
+                } else {
+                    const width = body.width + 2;
+                    const height = body.height + 2;
                     this.ninePatch(this.wood, -width / 2, -height / 2, width, height);
                 }
 
-                graphics.pop();
+                pop();
             }
 
             for (const joint of world.joints) {
-                graphics.push();
+                push();
                 const bodyA = world.bodies.find(b => b.id === joint.bodyA);
                 const bodyB = world.bodies.find(b => b.id === joint.bodyB);
                 if (bodyA && bodyB) {
-                    const length = physics.lengthVec2(physics.subtractVec2(bodyA.center, bodyB.center));
-                    graphics.translate(bodyA.center.x, bodyA.center.y);
-                    graphics.rotate(Math.atan2(bodyB.center.y - bodyA.center.y, bodyB.center.x - bodyA.center.x));
-                    graphics.fillRect(0, -2, length, 4, "black");
+                    const length = lengthVec2(subtractVec2(bodyA.center, bodyB.center));
+                    translate(bodyA.center.x, bodyA.center.y);
+                    rotate(Math.atan2(bodyB.center.y - bodyA.center.y, bodyB.center.x - bodyA.center.x));
+                    fillRect(0, -2, length, 4, "black");
                 }
 
-                graphics.pop();
+                pop();
             }
         }
     }

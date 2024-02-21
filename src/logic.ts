@@ -1,6 +1,6 @@
 import type { OnChangeAction, OnChangeEvent, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
-import { PhysicsWorld, physics, resources, Body } from "togl";
-import { ASSETS } from "./lib/util";
+import { PhysicsWorld, parseXml, worldStep, createWorld, createCircle, Vec2, createJoint, createRectangle, rotateShape, Body } from "togl/logic";
+import { ASSETS } from "./lib/rawassets";
 
 const TO_RADIANS = Math.PI / 180;
 
@@ -20,32 +20,32 @@ function parseSVGTransform(a: any) {
 }
 
 export function loadCourse(name: string): PhysicsWorld {
-  const xml = resources.loadTextSync(ASSETS[name]);
-  const parser = new DOMParser();
-  const document = parser.parseFromString(xml, "text/xml");
+  const content = ASSETS[name];
+  const document = parseXml(content);
 
-  const world = physics.createWorld();
-  const root = document.getElementsByTagName("g")[0];
+  console.log(document);
+  const world = createWorld();
+  const root = document.svg.g;
 
-  const ball = physics.createCircle(world, physics.Vec2(140, 100), 10, 1, 1, 1);
-  physics.createCircle(world, physics.Vec2(200, 100), 10, 1, 1, 1);
-  
-  const test1 = physics.createCircle(world, physics.Vec2(170, 50), 10, 1, 1, 1);
-  const test2 = physics.createCircle(world, physics.Vec2(200, 50), 10, 1, 1, 1);
-  physics.createJoint(world, test1, test2, 1);
+  const ball = createCircle(world, Vec2(140, 100), 10, 1, 1, 1);
+  createCircle(world, Vec2(200, 100), 10, 1, 1, 1);
+
+  const test1 = createCircle(world, Vec2(170, 50), 10, 1, 1, 1);
+  const test2 = createCircle(world, Vec2(200, 50), 10, 1, 1, 1);
+  createJoint(world, test1, test2, 1);
 
   let index = 0;
   let anchor: Body = ball;
-  for (const rect of root.getElementsByTagName("rect")) {
-    const height = Math.floor(Number.parseFloat(rect.getAttribute("height") ?? "0"));
-    const width = Math.floor(Number.parseFloat(rect.getAttribute("width") ?? "0"));
-    const cx = Math.floor(Number.parseFloat(rect.getAttribute("x") ?? "0") + (width / 2));
-    const cy = Math.floor(Number.parseFloat(rect.getAttribute("y") ?? "0") + (height / 2));
+  for (const rect of root.rect) {
+    const height = Math.floor(Number.parseFloat(rect.height ?? "0"));
+    const width = Math.floor(Number.parseFloat(rect.width ?? "0"));
+    const cx = Math.floor(Number.parseFloat(rect.x ?? "0") + (width / 2));
+    const cy = Math.floor(Number.parseFloat(rect.y ?? "0") + (height / 2));
 
-    const transform = parseSVGTransform(rect.getAttribute("transform"));
-    const body = physics.createRectangle(world, physics.Vec2(cx, cy), width, height, index === 1 ? 1 : 0, 1, 0.5);
+    const transform = parseSVGTransform(rect.transform);
+    const body = createRectangle(world, Vec2(cx, cy), width, height, 0, 1, 0.5);
     if (transform.rotate) {
-      physics.rotateShape(body, transform.rotate[0] * TO_RADIANS);
+      rotateShape(body, transform.rotate[0] * TO_RADIANS);
     }
     if (index === 0) {
       anchor = body;
@@ -54,8 +54,8 @@ export function loadCourse(name: string): PhysicsWorld {
     index++;
   }
   if (anchor) {
-    const test3 = physics.createCircle(world, physics.Vec2(165, 220), 10, 1, 1, 1);
-    physics.createJoint(world, anchor, test3, 1);
+    const test3 = createCircle(world, Vec2(165, 220), 10, 1, 1, 1);
+    createJoint(world, anchor, test3, 1);
   }
 
   return world;
@@ -96,7 +96,7 @@ export interface GameState {
 //     maxKeysInObject: 0,
 //     nestingDepth: 0
 //   }
-  
+
 //   getStats(object, stats, 0);
 
 //   return JSON.stringify(stats);
@@ -127,7 +127,8 @@ Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 4,
   setup: (): GameState => {
-    const world = physics.createDemoScene(30, true); //loadCourse("course1.svg");
+    // const world = createDemoScene(30, true); 
+    const world = loadCourse("course1.svg");
     const initialState: GameState = {
       world: world,
       totalFrames: 0
@@ -155,10 +156,10 @@ Rune.initLogic({
     // }
 
     // this runs really slow - cause the proxies have been remove 12-20ms
-    // physics.worldStep(15, context.game.world); 
+    // worldStep(15, context.game.world); 
     // this runs really quick - cause the proxies have been removed 0-1ms
     const world = JSON.parse(JSON.stringify(context.game.world));
-    physics.worldStep(15, world); 
+    worldStep(15, world);
     context.game.world = world;
 
   },

@@ -1,6 +1,5 @@
 import { defineConfig } from "vite"
 import { qrcode } from "vite-plugin-qrcode"
-import react from "@vitejs/plugin-react"
 import rune from "vite-plugin-rune"
 import path from "node:path"
 
@@ -11,12 +10,7 @@ export default defineConfig({
     qrcode(), // only applies in dev mode
     rune({ logicPath: path.resolve("./src/logic.ts") }),
   ],
-  optimizeDeps: {
-    include: ['togl'],
-  },
+  assetsInclude: ["**/*.svg"],
   build: {
-    commonjsOptions: {
-      include: [/togl/],
-    },
   },
 })
