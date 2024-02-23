@@ -17,32 +17,67 @@ function parseSVGTransform(a: any) {
   return b;
 }
 
-export function createTestScene(): physics.PhysicsWorld {
-  const world = physics.createWorld();
-
-  physics.createCircle(world, physics.Vec2(140, 100), 10, 1, 1, 1);
-  physics.createRectangle(world, physics.Vec2(180, 100), 10, 10, 1, 1, 1);
-  
-  return world;
+export interface Course {
+  start: physics.Vector2;
+  goal: physics.Vector2;
+  world: physics.PhysicsWorld;
 }
 
-export function loadCourse(name: string): physics.PhysicsWorld {
+export interface PlayerBall {
+  bodyId?: number;
+  playerId: PlayerId;
+  inPlay: boolean;
+}
+
+export enum MaterialType {
+  EARTH = 1,
+  GRASS = 2,
+  STONE1 = 3,
+  STONE2 = 4,
+  STONE3 = 5,
+}
+
+const SVG_COLOR_MAP: Record<string, MaterialType> = {
+  "#a5e306": MaterialType.GRASS,
+  "#8bb8be": MaterialType.STONE1,
+  "#5b8b95": MaterialType.STONE2,
+  "#487d8f": MaterialType.STONE3,
+}
+
+export function loadCourse(name: string): Course {
   const content = ASSETS[name];
   const document = xml.parseXml(content);
 
   console.log(document);
   const world = physics.createWorld();
   const root = document.svg.g;
+  const start: physics.Vector2 = physics.newVec2(0, 0);
+  const goal: physics.Vector2 = physics.newVec2(0, 0);
 
-  const ball = physics.createCircle(world, physics.Vec2(140, 100), 10, 1, 1, 1);
-  physics.createCircle(world, physics.Vec2(200, 100), 10, 1, 1, 1);
+  for (const circle of root.ellipse) {
+    const cx = Math.floor(Number.parseFloat(circle.cx ?? "0"));
+    const cy = Math.floor(Number.parseFloat(circle.cy ?? "0"));
+    const rx = Math.floor(Number.parseFloat(circle.rx ?? "0"));
+    const fill = circle.fill;
 
-  const test1 = physics.createCircle(world, physics.Vec2(170, 50), 10, 1, 1, 1);
-  const test2 = physics.createCircle(world, physics.Vec2(200, 50), 10, 1, 1, 1);
-  physics.createJoint(world, test1, test2, 1);
+    if (fill === "#00ff00") {
+      // green is the start point
+      start.x = cx;
+      start.y = cy;
+      continue;
+    }
+    if (fill === "#ff0000") {
+      // red is the goal point
+      goal.x = cx;
+      goal.y = cy;
+      continue;
+    }
 
-  let index = 0;
-  let anchor: physics.Body = ball;
+    const body = physics.createCircle(world, physics.newVec2(cx, cy), rx, 0, 1, 0.5);
+    const type = SVG_COLOR_MAP[circle.fill] ?? MaterialType.EARTH;
+    body.data = { type };
+  }
+
   for (const rect of root.rect) {
     const height = Math.floor(Number.parseFloat(rect.height ?? "0"));
     const width = Math.floor(Number.parseFloat(rect.width ?? "0"));
@@ -50,64 +85,25 @@ export function loadCourse(name: string): physics.PhysicsWorld {
     const cy = Math.floor(Number.parseFloat(rect.y ?? "0") + (height / 2));
 
     const transform = parseSVGTransform(rect.transform);
-    const body = physics.createRectangle(world, physics.Vec2(cx, cy), width, height, 0, 1, 0.5);
+    const body = physics.createRectangle(world, physics.newVec2(cx, cy), width, height, 0, 1, 0.5);
+    const type = SVG_COLOR_MAP[rect.fill] ?? MaterialType.EARTH;
+    body.data = { type };
+
     if (transform.rotate) {
       physics.rotateShape(body, transform.rotate[0] *  Math.PI / 180);
     }
-    if (index === 0) {
-      anchor = body;
-    }
-
-    index++;
-  }
-  if (anchor) {
-    const test3 = physics.createCircle(world, physics.Vec2(165, 220), 10, 1, 1, 1);
-    physics.createJoint(world, anchor, test3, 1);
   }
 
-  return world;
+  return { 
+    world, start, goal
+  };
 }
 
 export interface GameState {
-  world: physics.PhysicsWorld;
-  totalFrames: number
+  course: Course;
+  players: PlayerBall[];
+  whoseTurn?: PlayerId;
 }
-
-// interface Stats {
-//   maxArrayLength: number;
-//   maxKeysInObject: number;
-//   nestingDepth: number;
-// }
-
-// // eslint-disable-next-line @typescript-eslint/no-explicit-any
-// function getStats(object: any, stats: Stats, depth: number) {
-//   stats.nestingDepth = Math.max(depth, stats.nestingDepth);
-
-//   if (Array.isArray(object)) {
-//     stats.maxArrayLength = Math.max(stats.maxArrayLength, object.length);
-//     for (const obj of object) {
-//       getStats(obj, stats, depth);
-//     }
-//   } else if (typeof object === 'object' && object !== null) {
-//     stats.maxKeysInObject = Object.keys(object).length;
-//     for (const key in object) {
-//       getStats(object[key], stats, depth+1);
-//     }
-//   }
-// }
-
-// // eslint-disable-next-line @typescript-eslint/no-explicit-any
-// function mutativeRelatedStats(object: any) {
-//   const stats: Stats = {
-//     maxArrayLength: 0,
-//     maxKeysInObject: 0,
-//     nestingDepth: 0
-//   }
-
-//   getStats(object, stats, 0);
-
-//   return JSON.stringify(stats);
-// }
 
 // Quick type so I can pass the complex object that is the 
 // Rune onChange blob around without ugliness. 
@@ -123,59 +119,115 @@ export type GameUpdate = {
 };
 
 type GameActions = {
-  jump: () => void
+  // todo
 }
 
 declare global {
   const Rune: RuneClient<GameState, GameActions>
 }
 
+function addPlayerBall(state: GameState, id: PlayerId): void {
+  const player = state.players.find(p => p.playerId === id);
+  if (player) {
+    if (!player.bodyId) {
+      const ball = physics.createCircle(state.course.world, physics.newVec2(state.course.start.x, state.course.start.y), 18, 1, 1, 1);
+      ball.data = { playerId: id };
+      player.bodyId = ball.id;
+    }
+  }
+}
+
+function removePlayerBall(state: GameState, id: PlayerId): void {
+  const player = state.players.find(p => p.playerId === id);
+  if (player) {
+    if (player.bodyId) {
+      const index = state.course.world.bodies.findIndex(b => b.id === player.bodyId);
+      if (index >= 0) {
+        state.course.world.bodies.splice(index, 1);
+      }
+    }
+  }
+}
+
+function nextTurn(state: GameState): void {
+  if (state.players.length === 0) {
+    return;
+  }
+
+  let index = state.players.findIndex(p => p.playerId === state.whoseTurn);
+  if (index >= 0) {
+    index++;
+    if (index > state.players.length - 1) {
+      index = 0;
+    }
+  } else {
+    index = 0;
+  }
+
+  state.whoseTurn = state.players[index].playerId;
+}
+
+function addPlayer(state: GameState, id: PlayerId): void {
+  state.players.push({
+    playerId: id,
+    inPlay: false
+  });
+}
+
+function removePlayer(state: GameState, id: PlayerId): void {
+  state.players = state.players.filter(p => p.playerId !== id);
+}
+
 Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 4,
-  setup: (): GameState => {
-    // const world = createDemoScene(30, true); 
-    const world = createTestScene(); //loadCourse("course1.svg");
+  setup: (allPlayerIds: PlayerId[]): GameState => {
+    const course = loadCourse("course1.svg");
     const initialState: GameState = {
-      world: world,
-      totalFrames: 0
+      course: course,
+      players: []
     }
+
+    for (const player of allPlayerIds) {
+      addPlayer(initialState, player);
+    }
+
+    nextTurn(initialState);
 
     return initialState;
   },
   events: {
-    playerJoined: () => {
+    playerJoined: (playerId: PlayerId, context) => {
       // do nothing
+      addPlayer(context.game, playerId);
     },
-    playerLeft: () => {
+    playerLeft: (playerId: PlayerId, context) => {
       // do nothing
+      if (context.game.whoseTurn === playerId) {
+        nextTurn(context.game);
+      }
+      removePlayerBall(context.game, playerId);
+      removePlayer(context.game, playerId);
     },
   },
   updatesPerSecond: 30,
   update: (context) => {
-    context.game.totalFrames++;
-
-    // // Dump out some debug to see if theres something 
-    // // hard for mutative to deal with
-    // if (context.game.totalFrames === 300) {
-    //   console.log(JSON.stringify(context.game.world));
-    //   console.log(mutativeRelatedStats(context.game.world));
-    // }
-
-    // this runs really slow - cause the proxies have been remove 12-20ms
+    if (context.game.whoseTurn) {
+      const player = context.game.players.find(p => p.playerId === context.game.whoseTurn);
+      if (player) {
+        if (!player.bodyId) {
+          addPlayerBall(context.game, player.playerId);
+        }
+      }
+    }
+    // this runs really slow - because the proxies have been remove 12-20ms
     // worldStep(15, context.game.world); 
-    // this runs really quick - cause the proxies have been removed 0-1ms
-    const world = JSON.parse(JSON.stringify(context.game.world));
-    physics.worldStep(15, world);
-    context.game.world = world;
 
+    // this runs really quick - because the proxies have been removed 0-1ms
+    const world = JSON.parse(JSON.stringify(context.game.course.world));
+    physics.worldStep(15, world);
+    context.game.course.world = world;
   },
   actions: {
-    jump: (params, { game }) => {
-      const ball = game.world.bodies.find(b => b.id === 1);
-      if (ball) {
-        ball.velocity.y = -100;
-      }
-    },
   },
 })

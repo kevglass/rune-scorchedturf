@@ -1,6 +1,7 @@
 import { graphics, physics } from "togl";
-import { GameState, GameUpdate } from "./logic";
+import { GameState, GameUpdate, MaterialType } from "./logic";
 import { ASSETS } from "./lib/assets";
+import { PlayerId, Players } from "rune-games-sdk";
 
 export class ScorchedTurf implements graphics.Game {
     game?: GameState;
@@ -9,17 +10,35 @@ export class ScorchedTurf implements graphics.Game {
     ball!: graphics.GameImage;
     background!: graphics.GameImage;
     wood!: graphics.TileSet;
+    flag!: graphics.TileSet;
+    roundWood!: graphics.GameImage;
     assetsLoaded = false;
-    localWorld?: physics.PhysicsWorld;
-    localPhysics = false;
+    cam: physics.Vector2 = physics.newVec2(0, 0);
+
+    localPlayerId?: PlayerId;
+    players?: Players;
+
+    materials: Record<MaterialType, { rect: graphics.TileSet, circle: graphics.GameImage }>;
+    frame = 0;
+
     constructor() {
-        graphics.init(graphics.RendererType.WEBGL, false);
+        graphics.init(graphics.RendererType.WEBGL, true, 1024);
 
         this.font12white = graphics.generateFont(12, "black");
 
-        this.ball = graphics.loadImage(ASSETS["ball.png"]);
+        this.ball = graphics.loadImage(ASSETS["ball.png"], true, "ball", true);
         this.background = graphics.loadImage(ASSETS["background.png"]);
         this.wood = graphics.loadTileSet(ASSETS["wood.png"], 15, 15);
+        this.flag = graphics.loadTileSet(ASSETS["flag.png"], 128, 256);
+        this.roundWood = graphics.loadImage(ASSETS["roundwood.png"]);
+
+        this.materials = {
+            [MaterialType.EARTH]: { rect: this.wood, circle: this.roundWood },
+            [MaterialType.GRASS]: { rect: graphics.loadTileSet(ASSETS["grass.png"], 45, 15), circle: this.roundWood },
+            [MaterialType.STONE1]: { rect: graphics.loadTileSet(ASSETS["stone1.png"], 45, 15), circle: this.roundWood },
+            [MaterialType.STONE2]: { rect: graphics.loadTileSet(ASSETS["stone2.png"], 45, 15), circle: this.roundWood },
+            [MaterialType.STONE3]: { rect: graphics.loadTileSet(ASSETS["stone3.png"], 45, 15), circle: this.roundWood },
+        }
     }
 
     start(): void {
@@ -38,11 +57,12 @@ export class ScorchedTurf implements graphics.Game {
     // notification of a new game state from the Rune SDK
     gameUpdate(update: GameUpdate): void {
         this.game = update.game;
+        this.localPlayerId = update.yourPlayerId;
+        this.players = update.players;
     }
 
     mouseDown(): void {
         // do nothing
-        Rune.actions.jump();
     }
 
     mouseDrag(): void {
@@ -66,20 +86,15 @@ export class ScorchedTurf implements graphics.Game {
         this.assetsLoaded = true;
     }
 
-    ninePatch(tiles: graphics.TileSet, x: number, y: number, width: number, height: number) {
-        graphics.drawTile(tiles, x, y, 4, width, height);
-        graphics.drawTile(tiles, x, y, 1, width, tiles.tileHeight);
-        graphics.drawTile(tiles, x, y + height - tiles.tileHeight, 7, width, tiles.tileHeight);
-        graphics.drawTile(tiles, x, y, 3, tiles.tileWidth, height);
-        graphics.drawTile(tiles, x + width - tiles.tileWidth, y, 5, tiles.tileWidth, height);
-
-        graphics.drawTile(tiles, x, y, 0);
-        graphics.drawTile(tiles, x + width - tiles.tileWidth, y, 2);
-        graphics.drawTile(tiles, x, y + height - tiles.tileHeight, 6);
-        graphics.drawTile(tiles, x + width - tiles.tileWidth, y + height - tiles.tileHeight, 8);
+    threePatch(tiles: graphics.TileSet, x: number, y: number, width: number, height: number) {
+        graphics.drawTile(tiles, x, y, 0, width, tiles.tileHeight);
+        graphics.drawTile(tiles, x, y + tiles.tileHeight -1, 1, width, height - (tiles.tileHeight * 2) + 2);
+        graphics.drawTile(tiles, x, y + height - tiles.tileHeight, 2, width, tiles.tileHeight);
     }
 
     render(): void {
+        this.frame++;
+
         if (!this.assetsLoaded) {
             return;
         }
@@ -90,21 +105,51 @@ export class ScorchedTurf implements graphics.Game {
 
         // run the world from the server
         if (this.game) {
-            this.drawWorld(this.game.world);
-        }
+            const widthInUnits = 500;
+            const scale = (1 / widthInUnits) * graphics.width();
+            const heightInUnits = ((graphics.height() / graphics.width()) * widthInUnits);
 
-        // run the local world
-        if (this.localPhysics) {
-            if (!this.localWorld) {
-                this.localWorld = JSON.parse(JSON.stringify(this.game.world));
+            graphics.push();
+            let vx = this.game.course.start.x;
+            let vy = this.game.course.start.y;
+            const localPlayer = this.game.players.find(p => p.playerId === this.localPlayerId);
+            if (localPlayer) {
+                const body = this.game.course.world.bodies.find(b => b.id === localPlayer.bodyId);
+                if (body) {
+                    vx = body.averageCenter.x;
+                    vy = body.averageCenter.y;
+                }
             }
-            if (this.localWorld) {
-                const before = Date.now();
-                physics.worldStep(15, this.localWorld);
-                const after = Date.now();
-                console.log(after-before);
-                this.drawWorld(this.localWorld);
+
+            // rationalise view coordinates based on world bounds
+            const worldBounds = physics.getWorldBounds(this.game.course.world);
+            const maxX = vx > worldBounds.max.x - (widthInUnits / 2);
+            const maxY = vy > worldBounds.max.y - (heightInUnits / 2);
+            const minX = vx < worldBounds.min.x + (widthInUnits / 2);
+            const minY = vy < worldBounds.min.y + (heightInUnits / 2);
+            if (worldBounds.max.x - worldBounds.min.x < widthInUnits) {
+                vx = (worldBounds.max.x + worldBounds.min.x) / 2;
+            } else if (maxX) {
+                vx = worldBounds.max.x - (widthInUnits / 2);
+            } else if (minX) {
+                vx = worldBounds.min.x + (widthInUnits / 2);
             }
+            if (worldBounds.max.y - worldBounds.min.y < heightInUnits) {
+                vy = (worldBounds.max.y + worldBounds.min.y) / 2;
+            } else if (maxY) {
+                vy = worldBounds.max.y - (heightInUnits / 2);
+            } else if (minY) {
+                vy = worldBounds.min.y + (heightInUnits / 2);
+            }
+
+            graphics.scale(scale, scale);
+            graphics.translate(Math.floor(-vx + (widthInUnits / 2)), Math.floor(-vy + (heightInUnits / 2)));
+            this.drawWorld(this.game.course.world);
+
+            const flagWidth = 32;
+            const flagHeight = 64;
+            graphics.drawTile(this.flag, this.game.course.goal.x - Math.floor(flagWidth / 2), this.game.course.goal.y - flagHeight, 0, flagWidth, flagHeight);
+            graphics.pop();
         }
     }
 
@@ -119,17 +164,27 @@ export class ScorchedTurf implements graphics.Game {
                 graphics.rotate(Math.floor(body.averageAngle * 10) / 10);
 
                 if (body.type === physics.ShapeType.CIRCLE) {
-
                     const size = body.bounds + 1;
-                    graphics.drawImage(this.ball, -size, -size, size * 2, size * 2);
+                    if (body.data.playerId) {
+                        graphics.drawImage(this.ball, -size, -size, size * 2, size * 2);
+                    } else {
+                        const image = this.materials[body.data.type as MaterialType].circle;
+                        graphics.drawImage(image, -size, -size, size * 2, size * 2);
+                    }
                 } else {
                     const width = body.width + 2;
                     const height = body.height + 2;
-                    this.ninePatch(this.wood, -width / 2, -height / 2, width, height);
+                    const tileset = this.materials[body.data.type as MaterialType].rect;
+                    this.threePatch(tileset, -width / 2, -height / 2, width, height);
                 }
 
                 graphics.pop();
             }
+
+            // draw bounds
+            // for (const body of world.bodies) {
+            //     graphics.fillRect(body.averageCenter.x - body.boundingBox.x, body.averageCenter.y - body.boundingBox.y, body.boundingBox.x * 2, body.boundingBox.y * 2, "rgba(255,0,0,0.5)");
+            // }
 
             for (const joint of world.joints) {
                 graphics.push();
