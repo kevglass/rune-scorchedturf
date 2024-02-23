@@ -20,6 +20,11 @@ export class ScorchedTurf implements graphics.Game {
 
     materials: Record<MaterialType, { rect: graphics.TileSet, circle: graphics.GameImage }>;
     frame = 0;
+    widthInUnits = 0;
+    heightInUnits = 0;
+    scale = 0;
+    vx = 0;
+    vy = 0;
 
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 1024);
@@ -61,8 +66,22 @@ export class ScorchedTurf implements graphics.Game {
         this.players = update.players;
     }
 
-    mouseDown(): void {
-        // do nothing
+    mouseDown(x: number, y: number): void {
+        x /= this.scale;
+        y /= this.scale;
+        x += Math.floor(this.vx - (this.widthInUnits / 2));
+        y += Math.floor(this.vy - (this.heightInUnits / 2));
+
+        if (this.game) {
+            const body = this.game.course.world.bodies.find(b => b.id === this.game?.players[0].bodyId);
+            console.log(body?.center);
+            if (body) {
+                const dx = x - body.center.x;
+                const dy = y - body.center.y;
+                
+                Rune.actions.shoot({ dx, dy });
+            }
+        }
     }
 
     mouseDrag(): void {
@@ -105,49 +124,49 @@ export class ScorchedTurf implements graphics.Game {
 
         // run the world from the server
         if (this.game) {
-            const widthInUnits = 500;
-            const scale = (1 / widthInUnits) * graphics.width();
-            const heightInUnits = ((graphics.height() / graphics.width()) * widthInUnits);
+            this.widthInUnits = 500;
+            this.scale = (1 / this.widthInUnits) * graphics.width();
+            this.heightInUnits = ((graphics.height() / graphics.width()) * this.widthInUnits);
 
             graphics.push();
-            let vx = this.game.course.start.x;
-            let vy = this.game.course.start.y;
+            this.vx = this.game.course.start.x;
+            this.vy = this.game.course.start.y;
             const localPlayer = this.game.players.find(p => p.playerId === this.localPlayerId);
             if (localPlayer) {
                 const body = this.game.course.world.bodies.find(b => b.id === localPlayer.bodyId);
                 if (body) {
-                    vx = body.averageCenter.x;
-                    vy = body.averageCenter.y;
+                    this.vx = body.averageCenter.x;
+                    this.vy = body.averageCenter.y;
                 }
             }
 
             // rationalise view coordinates based on world bounds
             const worldBounds = physics.getWorldBounds(this.game.course.world);
-            const maxX = vx > worldBounds.max.x - (widthInUnits / 2);
-            const maxY = vy > worldBounds.max.y - (heightInUnits / 2);
-            const minX = vx < worldBounds.min.x + (widthInUnits / 2);
-            const minY = vy < worldBounds.min.y + (heightInUnits / 2);
-            if (worldBounds.max.x - worldBounds.min.x < widthInUnits) {
-                vx = (worldBounds.max.x + worldBounds.min.x) / 2;
+            const maxX = this.vx > worldBounds.max.x - (this.widthInUnits / 2);
+            const maxY = this.vy > worldBounds.max.y - (this.heightInUnits / 2);
+            const minX = this.vx < worldBounds.min.x + (this.widthInUnits / 2);
+            const minY = this.vy < worldBounds.min.y + (this.heightInUnits / 2);
+            if (worldBounds.max.x - worldBounds.min.x < this.widthInUnits) {
+                this.vx = (worldBounds.max.x + worldBounds.min.x) / 2;
             } else if (maxX) {
-                vx = worldBounds.max.x - (widthInUnits / 2);
+                this.vx = worldBounds.max.x - (this.widthInUnits / 2);
             } else if (minX) {
-                vx = worldBounds.min.x + (widthInUnits / 2);
+                this.vx = worldBounds.min.x + (this.widthInUnits / 2);
             }
-            if (worldBounds.max.y - worldBounds.min.y < heightInUnits) {
-                vy = (worldBounds.max.y + worldBounds.min.y) / 2;
+            if (worldBounds.max.y - worldBounds.min.y < this.heightInUnits) {
+                this.vy = (worldBounds.max.y + worldBounds.min.y) / 2;
             } else if (maxY) {
-                vy = worldBounds.max.y - (heightInUnits / 2);
+                this.vy = worldBounds.max.y - (this.heightInUnits / 2);
             } else if (minY) {
-                vy = worldBounds.min.y + (heightInUnits / 2);
+                this.vy = worldBounds.min.y + (this.heightInUnits / 2);
             }
 
-            graphics.scale(scale, scale);
-            graphics.translate(Math.floor(-vx + (widthInUnits / 2)), Math.floor(-vy + (heightInUnits / 2)));
+            graphics.scale(this.scale, this.scale);
+            graphics.translate(Math.floor(-this.vx + (this.widthInUnits / 2)), Math.floor(-this.vy + (this.heightInUnits / 2)));
             this.drawWorld(this.game.course.world);
 
-            const flagWidth = 32;
-            const flagHeight = 64;
+            const flagWidth = 40;
+            const flagHeight = 80;
             graphics.drawTile(this.flag, this.game.course.goal.x - Math.floor(flagWidth / 2), this.game.course.goal.y - flagHeight, 0, flagWidth, flagHeight);
             graphics.pop();
         }

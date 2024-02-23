@@ -118,8 +118,8 @@ export type GameUpdate = {
   futureGame?: GameState;
 };
 
-type GameActions = {
-  // todo
+type GameActions = {  
+  shoot: (params: { dx: number, dy: number }) => void;
 }
 
 declare global {
@@ -229,5 +229,15 @@ Rune.initLogic({
     context.game.course.world = world;
   },
   actions: {
+    shoot: (params: { dx: number, dy: number }, context) => {
+      const player = context.game.players?.find(p => p.playerId === context.playerId);
+      if (player) {
+        const body = context.game.course.world.bodies.find(b => b.id === player.bodyId);
+        if (body) {
+          body.velocity.x += (params.dx * 5);
+          body.velocity.y += (params.dy * 5)
+        }
+      }
+    }
   },
 })
