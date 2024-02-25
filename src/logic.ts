@@ -113,7 +113,7 @@ export function loadCourse(name: string): Course {
     body.data = { type };
 
     if (transform.rotate) {
-      physics.rotateShape(body, transform.rotate[0] * Math.PI / 180);
+      physics.rotateBody(body, transform.rotate[0] * Math.PI / 180);
     }
 
     physics.addBody(world, body);

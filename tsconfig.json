@@ -27,5 +27,9 @@
     {
       "path": "./tsconfig.node.json"
     }
-  ]
+  ],
+  "typedocOptions": {
+      "entryPoints": ["src/index.ts"],
+      "out": "docs"
+  }
 }
