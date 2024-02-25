@@ -2,6 +2,10 @@ import type { OnChangeAction, OnChangeEvent, PlayerId, Players, RuneClient } fro
 import { physics, xml } from "togl/logic";
 import { ASSETS } from "./lib/rawassets";
 
+export const localPhysics = true;
+export const ballSize = 18;
+export const maxPower = 200;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSVGTransform(a: any) {
   if (!a) {
@@ -17,21 +21,29 @@ function parseSVGTransform(a: any) {
   return b;
 }
 
+export interface GameEvent {
+  id: number;
+  type: "shoot" | "addPlayer" | "removePlayer";
+  playerId: string;
+  dx?: number;
+  dy?: number;
+  power?: number;
+}
+
 export interface Course {
   start: physics.Vector2;
   goal: physics.Vector2;
-  world: physics.PhysicsWorld;
+  world: physics.World;
 }
 
 export interface PlayerBall {
-  bodyId?: number;
   playerId: PlayerId;
-  inPlay: boolean;
+  playerType: number;
 }
 
 export enum MaterialType {
-  EARTH = 1,
-  GRASS = 2,
+  GRASS = 1,
+  STONE0 = 2,
   STONE1 = 3,
   STONE2 = 4,
   STONE3 = 5,
@@ -39,6 +51,7 @@ export enum MaterialType {
 
 const SVG_COLOR_MAP: Record<string, MaterialType> = {
   "#a5e306": MaterialType.GRASS,
+  "#a8cbcc": MaterialType.STONE0,
   "#8bb8be": MaterialType.STONE1,
   "#5b8b95": MaterialType.STONE2,
   "#487d8f": MaterialType.STONE3,
@@ -48,12 +61,17 @@ export function loadCourse(name: string): Course {
   const content = ASSETS[name];
   const document = xml.parseXml(content);
 
-  console.log(document);
-  const world = physics.createWorld();
+  const world = physics.createWorld(physics.newVec2(0, 200));
+  // global friction 
+  world.damp = world.angularDamp = 0.94;
+
   const root = document.svg.g;
   const start: physics.Vector2 = physics.newVec2(0, 0);
   const goal: physics.Vector2 = physics.newVec2(0, 0);
 
+  if (!Array.isArray(root.ellipse)) {
+    root.ellipse = [root.ellipse];
+  }
   for (const circle of root.ellipse) {
     const cx = Math.floor(Number.parseFloat(circle.cx ?? "0"));
     const cy = Math.floor(Number.parseFloat(circle.cy ?? "0"));
@@ -74,10 +92,15 @@ export function loadCourse(name: string): Course {
     }
 
     const body = physics.createCircle(world, physics.newVec2(cx, cy), rx, 0, 1, 0.5);
-    const type = SVG_COLOR_MAP[circle.fill] ?? MaterialType.EARTH;
+    const type = SVG_COLOR_MAP[circle.fill] ?? MaterialType.GRASS;
     body.data = { type };
+
+    physics.addBody(world, body);
   }
 
+  if (!Array.isArray(root.rect)) {
+    root.rect = [root.rect];
+  }
   for (const rect of root.rect) {
     const height = Math.floor(Number.parseFloat(rect.height ?? "0"));
     const width = Math.floor(Number.parseFloat(rect.width ?? "0"));
@@ -86,15 +109,17 @@ export function loadCourse(name: string): Course {
 
     const transform = parseSVGTransform(rect.transform);
     const body = physics.createRectangle(world, physics.newVec2(cx, cy), width, height, 0, 1, 0.5);
-    const type = SVG_COLOR_MAP[rect.fill] ?? MaterialType.EARTH;
+    const type = SVG_COLOR_MAP[rect.fill] ?? MaterialType.GRASS;
     body.data = { type };
 
     if (transform.rotate) {
-      physics.rotateShape(body, transform.rotate[0] *  Math.PI / 180);
+      physics.rotateShape(body, transform.rotate[0] * Math.PI / 180);
     }
+
+    physics.addBody(world, body);
   }
 
-  return { 
+  return {
     world, start, goal
   };
 }
@@ -103,6 +128,11 @@ export interface GameState {
   course: Course;
   players: PlayerBall[];
   whoseTurn?: PlayerId;
+  startPhysicsTime: number;
+  events: GameEvent[];
+  executed: number;
+  nextId: number;
+  nextTurnAtRest: boolean;
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -118,35 +148,62 @@ export type GameUpdate = {
   futureGame?: GameState;
 };
 
-type GameActions = {  
-  shoot: (params: { dx: number, dy: number }) => void;
+type GameActions = {
+  shoot: (params: { dx: number, dy: number, power: number }) => void;
+  endTurn: () => void;
 }
 
 declare global {
   const Rune: RuneClient<GameState, GameActions>
 }
 
-function addPlayerBall(state: GameState, id: PlayerId): void {
-  const player = state.players.find(p => p.playerId === id);
-  if (player) {
-    if (!player.bodyId) {
-      const ball = physics.createCircle(state.course.world, physics.newVec2(state.course.start.x, state.course.start.y), 18, 1, 1, 1);
-      ball.data = { playerId: id };
-      player.bodyId = ball.id;
-    }
+function applyShoot(world: physics.World, bodyId: number, dx: number, dy: number, power: number): void {
+  const body = world.dynamicBodies.find(b => b.id === bodyId);
+  if (body) {
+    body.velocity.x += (dx * power);
+    body.velocity.y += (dy * power)
   }
 }
 
-function removePlayerBall(state: GameState, id: PlayerId): void {
-  const player = state.players.find(p => p.playerId === id);
-  if (player) {
-    if (player.bodyId) {
-      const index = state.course.world.bodies.findIndex(b => b.id === player.bodyId);
-      if (index >= 0) {
-        state.course.world.bodies.splice(index, 1);
+export function processUpdates(game: GameState, world: physics.World, executed: number): number {
+  for (const event of game.events) {
+    if (event.id > executed) {
+      if (event.type === "shoot" && event.dx && event.dy && event.power) {
+        const body = world.dynamicBodies.find(b => b.data?.playerId === event.playerId);
+        if (body) {
+          applyShoot(world, body.id, event.dx, event.dy, event.power);
+        }
       }
+
+      executed = event.id;
     }
   }
+
+  return executed;
+}
+
+export function runUpdate(game: GameState, world: physics.World, executed: number): number {
+  executed = processUpdates(game, world, executed);
+
+  if (game.whoseTurn) {
+    const player = game.players.find(p => p.playerId === game.whoseTurn);
+    if (player && !world.dynamicBodies.find(b => b.data?.playerId === player.playerId)) {
+      const ball = physics.createCircle(world, physics.newVec2(game.course.start.x, game.course.start.y), ballSize, 10, 1, 1);
+      ball.data = { playerId: player.playerId };
+      physics.addBody(world, ball);
+    }
+  }
+
+  // this runs really slow - because the proxies have been remove 12-20ms
+  // worldStep(15, context.game.world); 
+
+  if (Rune.gameTime() - game.startPhysicsTime < 2000 ||
+    !physics.atRest(world)) {
+    physics.worldStep(30, world);
+    physics.worldStep(30, world);
+  }
+
+  return executed;
 }
 
 function nextTurn(state: GameState): void {
@@ -167,10 +224,20 @@ function nextTurn(state: GameState): void {
   state.whoseTurn = state.players[index].playerId;
 }
 
-function addPlayer(state: GameState, id: PlayerId): void {
+function addPlayer(world: physics.World, state: GameState, id: PlayerId): void {
+  let playerType = 0;
+  for (playerType = 0; playerType < 6; playerType++) {
+    if (!state.players.find(p => p.playerType === playerType)) {
+      break;
+    }
+  }
+  if (playerType > 5) {
+    playerType = 0;
+  }
+
   state.players.push({
     playerId: id,
-    inPlay: false
+    playerType
   });
 }
 
@@ -185,58 +252,60 @@ Rune.initLogic({
     const course = loadCourse("course1.svg");
     const initialState: GameState = {
       course: course,
-      players: []
+      players: [],
+      startPhysicsTime: Rune.gameTime(),
+      events: [],
+      executed: 0,
+      nextId: 1,
+      nextTurnAtRest: false
     }
 
     for (const player of allPlayerIds) {
-      addPlayer(initialState, player);
+      addPlayer(course.world, initialState, player);
     }
 
     nextTurn(initialState);
-
     return initialState;
   },
   events: {
-    playerJoined: (playerId: PlayerId, context) => {
-      // do nothing
-      addPlayer(context.game, playerId);
-    },
     playerLeft: (playerId: PlayerId, context) => {
       // do nothing
       if (context.game.whoseTurn === playerId) {
         nextTurn(context.game);
       }
-      removePlayerBall(context.game, playerId);
       removePlayer(context.game, playerId);
     },
   },
   updatesPerSecond: 30,
   update: (context) => {
-    if (context.game.whoseTurn) {
-      const player = context.game.players.find(p => p.playerId === context.game.whoseTurn);
-      if (player) {
-        if (!player.bodyId) {
-          addPlayerBall(context.game, player.playerId);
-        }
-      }
+    if (!localPhysics) {
+      context.game.executed = runUpdate(context.game, context.game.course.world, context.game.executed,);
+    } else {
+      context.game.executed = processUpdates(context.game, context.game.course.world, context.game.executed);
     }
-    // this runs really slow - because the proxies have been remove 12-20ms
-    // worldStep(15, context.game.world); 
 
-    // this runs really quick - because the proxies have been removed 0-1ms
-    const world = JSON.parse(JSON.stringify(context.game.course.world));
-    physics.worldStep(15, world);
-    context.game.course.world = world;
+    if (context.game.whoseTurn && !context.allPlayerIds.includes(context.game.whoseTurn)) {
+      nextTurn(context.game);
+    }
   },
   actions: {
-    shoot: (params: { dx: number, dy: number }, context) => {
+    shoot: (params: { dx: number, dy: number, power: number }, context) => {
       const player = context.game.players?.find(p => p.playerId === context.playerId);
       if (player) {
-        const body = context.game.course.world.bodies.find(b => b.id === player.bodyId);
-        if (body) {
-          body.velocity.x += (params.dx * 5);
-          body.velocity.y += (params.dy * 5)
-        }
+        context.game.events.push({
+          id: context.game.nextId++,
+          playerId: context.playerId,
+          type: "shoot",
+          dx: params.dx,
+          dy: params.dy,
+          power: params.power
+        })
+        context.game.startPhysicsTime = Rune.gameTime() + 500;
+      }
+    },
+    endTurn: (params, context) => {
+      if (context.game.whoseTurn === context.playerId) {
+        nextTurn(context.game);
       }
     }
   },
