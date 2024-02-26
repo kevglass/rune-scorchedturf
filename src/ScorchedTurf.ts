@@ -3,6 +3,18 @@ import { ballSize, GameState, GameUpdate, MaterialType, localPhysics, maxPower, 
 import { ASSETS } from "./lib/assets";
 import { PlayerId, Players } from "rune-games-sdk";
 
+const nthStrings = [
+    "th",
+    "st",
+    "nd",
+    "rd",
+    "th"
+]
+
+export class LocalBall {
+
+}
+
 export class ScorchedTurf implements graphics.Game {
     game?: GameState;
 
@@ -12,10 +24,14 @@ export class ScorchedTurf implements graphics.Game {
         { r: 219, g: 123, b: 43 },
         { r: 204, g: 50, b: 50 }
     ];
+    fontSmall!: graphics.GameFont;
     fontBig!: graphics.GameFont;
+    fontBigger!: graphics.GameFont;
     playerBalls: graphics.GameImage[] = [];
     background!: graphics.GameImage;
     arrow!: graphics.GameImage;
+    logo!: graphics.GameImage;
+    whiteCircle!: graphics.GameImage;
     flag!: graphics.TileSet;
     assetsLoaded = false;
     cam: physics.Vector2 = physics.newVec2(0, 0);
@@ -48,12 +64,20 @@ export class ScorchedTurf implements graphics.Game {
 
     dragOffsetX = 0;
     dragOffsetY = 0;
+    dragging = false;
+
+    atStart = true;
+    showTitle = false;
 
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 2048);
 
+        this.fontSmall = graphics.generateFont(16, "white");
         this.fontBig = graphics.generateFont(24, "white");
+        this.fontBigger = graphics.generateFont(40, "white");
         this.arrow = graphics.loadImage(ASSETS["arrow.png"], true, "arrow", true);
+        this.logo = graphics.loadImage(ASSETS["logo.png"]);
+        this.whiteCircle = graphics.loadImage(ASSETS["whitecircle.png"]);
 
         this.playerBalls = [
             graphics.loadImage(ASSETS["parrot.png"], true, "parrot", true),
@@ -110,6 +134,16 @@ export class ScorchedTurf implements graphics.Game {
         this.localPlayerId = update.yourPlayerId;
         this.players = update.players;
 
+        for (const event of this.game.events) {
+            if (event.id > this.executed) {
+                if (event.type === "newCourse") {
+                    this.localWorld = JSON.parse(JSON.stringify(this.game.course.world));
+                    this.executed = event.id;
+                    this.showTitle = true;
+                }
+            }
+        }
+
         if (this.localWorld && update.event?.name === "update") {
             this.executed = runUpdate(update.game, this.localWorld, this.executed);
 
@@ -128,6 +162,22 @@ export class ScorchedTurf implements graphics.Game {
     }
 
     mouseDown(x: number, y: number): void {
+        if (this.atStart) {
+            this.atStart = false;
+            return;
+        }
+        if (this.showTitle) {
+            this.showTitle = false;
+            return;
+        }
+
+        // tapped at the bottom - reset view
+        if (y > graphics.height() - 60) {
+            this.dragOffsetX = 0;
+            this.dragOffsetY = 0;
+            return;
+        }
+
         x /= this.scale;
         y /= this.scale;
         x += Math.floor(this.cameraX - (this.widthInUnits / 2));
@@ -136,6 +186,7 @@ export class ScorchedTurf implements graphics.Game {
         this.sx = x;
         this.sy = y;
 
+        this.dragging = true;
         if (this.game && this.currentWorld && physics.atRest(this.currentWorld)) {
             const body = this.currentWorld.dynamicBodies.find(b => b.data?.playerId === this.localPlayerId);
             if (body) {
@@ -149,6 +200,7 @@ export class ScorchedTurf implements graphics.Game {
                         this.px = dx;
                         this.py = dy;
                         this.power = Math.min(maxPower, len);
+                        this.dragging = false;
                     }
                 }
             }
@@ -174,7 +226,7 @@ export class ScorchedTurf implements graphics.Game {
                         this.power = Math.min(maxPower, len);
                     }
                 }
-            } else {
+            } else if (this.dragging) {
                 this.dragOffsetX -= x - this.sx;
                 this.dragOffsetY -= y - this.sy;
             }
@@ -185,6 +237,8 @@ export class ScorchedTurf implements graphics.Game {
     }
 
     mouseUp(): void {
+        this.dragging = false;
+
         if (this.powerDragging) {
             if (this.power > 20) {
                 Rune.actions.shoot({ dx: -this.px / this.power, dy: -this.py / this.power, power: 150 + (this.power * 2) });
@@ -226,17 +280,32 @@ export class ScorchedTurf implements graphics.Game {
             return;
         }
         if (localPhysics && !this.localWorld) {
-            // clone the world created on the server for local play
-            this.localWorld = JSON.parse(JSON.stringify(this.game.course.world));
+            return;
         }
         this.currentWorld = this.localWorld ?? this.game.course.world;
-        graphics.drawImage(this.background, 0, 0, (graphics.height() / this.background.height) * this.background.width, graphics.height());
 
+        if (graphics.width() > graphics.height()) {
+            graphics.drawImage(this.background, 0, 0, graphics.width(), (graphics.width() / this.background.width) * this.background.height);
+        } else {
+            graphics.drawImage(this.background, 0, 0, (graphics.height() / this.background.height) * this.background.width, graphics.height());
+        }
+
+        if (this.atStart) {
+            graphics.drawImage(this.logo, Math.floor((graphics.width() - (1.05 * this.logo.width)) / 2), 50);
+            graphics.fillRect(0, graphics.height() - 65, graphics.width(), 40, "rgba(0,0,0,0.5)");
+            graphics.centerText("Tap/Click to Start", graphics.height() - 36, this.fontBig);
+        }
         // run the world from the server
         if (this.game) {
-            this.widthInUnits = 500;
-            this.scale = (1 / this.widthInUnits) * graphics.width();
-            this.heightInUnits = ((graphics.height() / graphics.width()) * this.widthInUnits);
+            if (graphics.width() > graphics.height()) {
+                this.heightInUnits = 500;
+                this.widthInUnits = ((graphics.height() / graphics.width()) * this.heightInUnits);
+                this.scale = (1 / this.heightInUnits) * graphics.height();
+            } else {
+                this.widthInUnits = 500;
+                this.heightInUnits = ((graphics.height() / graphics.width()) * this.widthInUnits);
+                this.scale = (1 / this.widthInUnits) * graphics.width();
+            }
 
             graphics.push();
             this.vx = this.game.course.start.x;
@@ -253,14 +322,24 @@ export class ScorchedTurf implements graphics.Game {
             this.cameraX += this.dragOffsetX;
             this.cameraY += this.dragOffsetY;
 
+            if (this.atStart) {
+                return;
+            }
+
             graphics.scale(this.scale, this.scale);
             graphics.translate(Math.floor(-this.cameraX + (this.widthInUnits / 2)), Math.floor(-this.cameraY + (this.heightInUnits / 2)));
+
+            // draw goal area
+            const goalSize = 60;
+            graphics.alpha(0.2);
+            graphics.drawImage(this.whiteCircle, this.game.course.goal.x - Math.floor(goalSize / 2), this.game.course.goal.y - (goalSize / 2), goalSize, goalSize);
+            graphics.alpha(1);
 
             this.drawWorld(this.game, this.localWorld ?? this.game.course.world);
 
             const flagWidth = 40;
             const flagHeight = 80;
-            graphics.drawTile(this.flag, this.game.course.goal.x - Math.floor(flagWidth / 2), this.game.course.goal.y - flagHeight, 0, flagWidth, flagHeight);
+            graphics.drawTile(this.flag, this.game.course.goal.x - 6, this.game.course.goal.y - flagHeight, 0, flagWidth, flagHeight);
 
             if (this.powerDragging && this.power > 20) {
                 const body = this.currentWorld.dynamicBodies.find(b => b.data.playerId === this.game?.whoseTurn);
@@ -286,20 +365,34 @@ export class ScorchedTurf implements graphics.Game {
             graphics.pop();
         }
 
+        if (this.atStart) {
+            return;
+        }
+
         if (this.players && this.game.whoseTurn) {
-            graphics.fillRect(0, graphics.height() - 60, graphics.width(), 30, "rgba(0,0,0,0.5)");
+            graphics.fillRect(0, graphics.height() - 60, graphics.width(), 60, "rgba(0,0,0,0.5)");
             let message = this.players[this.game.whoseTurn].displayName;
             if (this.game.whoseTurn === this.localPlayerId) {
                 message = "Your Turn";
             }
             const player = this.game.players.find(p => p.playerId === this.game?.whoseTurn);
-            graphics.drawText(57, graphics.height() - 36, message, this.fontBig);
+            graphics.drawText(57, graphics.height() - 32, message, this.fontBig);
+            if (player) {
+                message = (player.shots + 1) + nthStrings[Math.min(4, player.shots + 1)] + " shot";
+                graphics.drawText(59, graphics.height() - 14, message, this.fontSmall);
+            }
             let type = 5;
             const size = 20;
             if (player) {
                 type = player.playerType;
             }
-            graphics.drawImage(this.playerBalls[type], 10, graphics.height() - 45 - size, size * 2, size * 2);
+            graphics.drawImage(this.playerBalls[type], 10, graphics.height() - 33 - size, size * 2, size * 2);
+        }
+
+        if (this.showTitle && this.game) {
+            graphics.fillRect(0, (graphics.height() / 2) - 50, graphics.width(), 100, "rgba(0,0,0,0.5)");
+            graphics.centerText(this.game.course.name, (graphics.height() / 2), this.fontBigger);
+            graphics.centerText("Par " + this.game.course.par, (graphics.height() / 2) + 30, this.fontBig);
         }
     }
 

@@ -6,6 +6,10 @@ export const localPhysics = true;
 export const ballSize = 18;
 export const maxPower = 200;
 
+export const courses = [
+  "course1.svg",
+];
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSVGTransform(a: any) {
   if (!a) {
@@ -23,7 +27,7 @@ function parseSVGTransform(a: any) {
 
 export interface GameEvent {
   id: number;
-  type: "shoot" | "addPlayer" | "removePlayer";
+  type: "shoot" | "newCourse"
   playerId: string;
   dx?: number;
   dy?: number;
@@ -34,11 +38,15 @@ export interface Course {
   start: physics.Vector2;
   goal: physics.Vector2;
   world: physics.World;
+  name: string;
+  par: number;
 }
 
 export interface PlayerBall {
   playerId: PlayerId;
   playerType: number;
+  shots: number;
+  totalShots: number;
 }
 
 export enum MaterialType {
@@ -69,10 +77,20 @@ export function loadCourse(name: string): Course {
   const start: physics.Vector2 = physics.newVec2(0, 0);
   const goal: physics.Vector2 = physics.newVec2(0, 0);
 
+  const text = root.title.__text;
+  const parts = text.split(",");
+  const courseName = parts[0];
+  const par = Number.parseInt(parts[1]);
+
   if (!Array.isArray(root.ellipse)) {
     root.ellipse = [root.ellipse];
   }
   for (const circle of root.ellipse) {
+    // any setting of opacity removes it from the scene
+    if (circle.opacity) {
+      continue;
+    }
+
     const cx = Math.floor(Number.parseFloat(circle.cx ?? "0"));
     const cy = Math.floor(Number.parseFloat(circle.cy ?? "0"));
     const rx = Math.floor(Number.parseFloat(circle.rx ?? "0"));
@@ -102,6 +120,11 @@ export function loadCourse(name: string): Course {
     root.rect = [root.rect];
   }
   for (const rect of root.rect) {
+    // any setting of opacity removes it from the scene
+    if (rect.opacity) {
+      continue;
+    }
+
     const height = Math.floor(Number.parseFloat(rect.height ?? "0"));
     const width = Math.floor(Number.parseFloat(rect.width ?? "0"));
     const cx = Math.floor(Number.parseFloat(rect.x ?? "0") + (width / 2));
@@ -120,7 +143,7 @@ export function loadCourse(name: string): Course {
   }
 
   return {
-    world, start, goal
+    world, start, goal, name: courseName, par
   };
 }
 
@@ -237,12 +260,27 @@ function addPlayer(world: physics.World, state: GameState, id: PlayerId): void {
 
   state.players.push({
     playerId: id,
-    playerType
+    playerType,
+    shots: 0,
+    totalShots: 0
   });
 }
 
 function removePlayer(state: GameState, id: PlayerId): void {
   state.players = state.players.filter(p => p.playerId !== id);
+}
+
+function startCourse(game: GameState): void {
+  game.events.push({
+    id: game.nextId++,
+    playerId: "",
+    type: "newCourse"
+  });
+
+  for (const player of game.players) {
+    player.totalShots += player.shots;
+    player.shots = 0;
+  }
 }
 
 Rune.initLogic({
@@ -265,6 +303,8 @@ Rune.initLogic({
     }
 
     nextTurn(initialState);
+    startCourse(initialState);
+
     return initialState;
   },
   events: {
@@ -292,6 +332,7 @@ Rune.initLogic({
     shoot: (params: { dx: number, dy: number, power: number }, context) => {
       const player = context.game.players?.find(p => p.playerId === context.playerId);
       if (player) {
+        player.shots++;
         context.game.events.push({
           id: context.game.nextId++,
           playerId: context.playerId,
