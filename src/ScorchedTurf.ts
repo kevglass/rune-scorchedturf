@@ -1,5 +1,5 @@
 import { graphics, physics } from "togl";
-import { ballSize, GameState, GameUpdate, MaterialType, localPhysics, maxPower, runUpdate } from "./logic";
+import { ballSize, GameState, GameUpdate, MaterialType, localPhysics, maxPower, runUpdate, goalSize } from "./logic";
 import { ASSETS } from "./lib/assets";
 import { PlayerId, Players } from "rune-games-sdk";
 
@@ -11,8 +11,18 @@ const nthStrings = [
     "th"
 ]
 
-export class LocalBall {
+const PARTICLE_LIFE = 10; // frames
+const PARTICLE_SIZE = 25;
 
+interface Particle {
+    life: number;
+    x: number;
+    y: number;
+}
+
+interface Sink {
+    playerId: string;
+    time: number;
 }
 
 export class ScorchedTurf implements graphics.Game {
@@ -68,6 +78,16 @@ export class ScorchedTurf implements graphics.Game {
 
     atStart = true;
     showTitle = false;
+    showTitleTimer = 0;
+
+    particles: Particle[] = [];
+    courseNumber = -1;
+    completed: string[] = [];
+
+    currentBody?: physics.Body;
+
+    lastSink?: Sink;
+    gameOver = false;
 
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 2048);
@@ -115,6 +135,10 @@ export class ScorchedTurf implements graphics.Game {
         }
     }
 
+    get courseComplete(): boolean {
+        return (this.game && this.players && Object.values(this.players).length <= this.completed.length) ? true : false;
+    }
+
     start(): void {
         // tell rune to let us know when a game
         // update happens
@@ -140,12 +164,19 @@ export class ScorchedTurf implements graphics.Game {
                     this.localWorld = JSON.parse(JSON.stringify(this.game.course.world));
                     this.executed = event.id;
                     this.showTitle = true;
+                    this.showTitleTimer = Date.now();
+                    this.courseNumber = event.courseNumber;
+                    this.completed = [];
+                }
+                if (event.type === "gameOver") {
+                    this.gameOver = true;
+                    this.executed = event.id;
                 }
             }
         }
 
         if (this.localWorld && update.event?.name === "update") {
-            this.executed = runUpdate(update.game, this.localWorld, this.executed);
+            this.executed = runUpdate(update.game, this.localWorld, this.executed, this.completed);
 
             if (!physics.atRest(this.localWorld)) {
                 this.dragOffsetX = 0;
@@ -157,13 +188,43 @@ export class ScorchedTurf implements graphics.Game {
                     setTimeout(() => { if (this.localWorld) { Rune.actions.endTurn(); } }, 1);
                 }
             }
-        }
 
+            for (const p of [...this.particles]) {
+                p.life--;
+                if (p.life <= 0) {
+                    this.particles.splice(this.particles.indexOf(p));
+                }
+            }
+
+            if (!physics.atRest(this.localWorld)) {
+                for (const body of [...this.localWorld.dynamicBodies]) {
+                    const distanceToGoal = physics.lengthVec2(physics.subtractVec2(this.game.course.goal, body.center));
+                    if (distanceToGoal < body.bounds + goalSize) {
+                        this.completed.push(body.data.playerId);
+                        physics.removeBody(this.localWorld, body);
+                        setTimeout(() => {
+                            Rune.actions.reachedGoal({ playerId: body.data.playerId, courseId: this.courseNumber })
+                        }, 1);
+                        this.lastSink = {
+                            playerId: body.data.playerId,
+                            time: Date.now()
+                        }
+                    } else {
+                        this.particles.push({
+                            life: PARTICLE_LIFE,
+                            x: body.center.x,
+                            y: body.center.y
+                        });
+                    }
+                }
+            }
+        }
     }
 
     mouseDown(x: number, y: number): void {
         if (this.atStart) {
             this.atStart = false;
+            this.showTitleTimer = Date.now();
             return;
         }
         if (this.showTitle) {
@@ -311,9 +372,13 @@ export class ScorchedTurf implements graphics.Game {
             this.vx = this.game.course.start.x;
             this.vy = this.game.course.start.y;
             const body = this.currentWorld.dynamicBodies.find(b => b.data.playerId === this.game?.whoseTurn);
-            if (body) {
-                this.vx = body.averageCenter.x;
-                this.vy = body.averageCenter.y;
+            if (!this.currentBody || (this.currentBody !== body && body)) {
+                this.currentBody = body;
+            }
+
+            if (this.currentBody) {
+                this.vx = this.currentBody.averageCenter.x;
+                this.vy = this.currentBody.averageCenter.y;
             }
 
             this.cameraX = (this.cameraX * 0.7) + (this.vx * 0.3);
@@ -330,11 +395,19 @@ export class ScorchedTurf implements graphics.Game {
             graphics.translate(Math.floor(-this.cameraX + (this.widthInUnits / 2)), Math.floor(-this.cameraY + (this.heightInUnits / 2)));
 
             // draw goal area
-            const goalSize = 60;
             graphics.alpha(0.2);
             graphics.drawImage(this.whiteCircle, this.game.course.goal.x - Math.floor(goalSize / 2), this.game.course.goal.y - (goalSize / 2), goalSize, goalSize);
             graphics.alpha(1);
 
+            for (const p of this.particles) {
+                const a = p.life / PARTICLE_LIFE;
+                graphics.alpha(a);
+                const size = PARTICLE_SIZE - (10 * (1 - a));
+                if (size > 0) {
+                    graphics.drawImage(this.whiteCircle, p.x - Math.floor(size / 2), p.y - Math.floor(size / 2), size, size);
+                }
+            }
+            graphics.alpha(1);
             this.drawWorld(this.game, this.localWorld ?? this.game.course.world);
 
             const flagWidth = 40;
@@ -376,24 +449,105 @@ export class ScorchedTurf implements graphics.Game {
                 message = "Your Turn";
             }
             const player = this.game.players.find(p => p.playerId === this.game?.whoseTurn);
-            graphics.drawText(57, graphics.height() - 32, message, this.fontBig);
+            graphics.drawText(67, graphics.height() - 32, message, this.fontBig);
             if (player) {
                 message = (player.shots + 1) + nthStrings[Math.min(4, player.shots + 1)] + " shot";
-                graphics.drawText(59, graphics.height() - 14, message, this.fontSmall);
+                graphics.drawText(69, graphics.height() - 14, message, this.fontSmall);
             }
             let type = 5;
             const size = 20;
             if (player) {
                 type = player.playerType;
             }
-            graphics.drawImage(this.playerBalls[type], 10, graphics.height() - 33 - size, size * 2, size * 2);
+            graphics.drawImage(this.playerBalls[type], 20, graphics.height() - 33 - size, size * 2, size * 2);
         }
 
         if (this.showTitle && this.game) {
-            graphics.fillRect(0, (graphics.height() / 2) - 50, graphics.width(), 100, "rgba(0,0,0,0.5)");
-            graphics.centerText(this.game.course.name, (graphics.height() / 2), this.fontBigger);
-            graphics.centerText("Par " + this.game.course.par, (graphics.height() / 2) + 30, this.fontBig);
+            const sinceShown = Date.now() - this.showTitleTimer;
+            let a = 1;
+            if (sinceShown > 2000) {
+                this.showTitle = false;
+            } else if (sinceShown > 1500) {
+                a = 1 - ((sinceShown - 1500) / 500);
+            }
+            if (this.showTitle) {
+                graphics.alpha(a);
+                graphics.fillRect(0, (graphics.height() / 2) - 70, graphics.width(), 120, "rgba(0,0,0,0.5)");
+                graphics.centerText("Hole " + (this.courseNumber + 1), (graphics.height() / 2) - 40, this.fontBig, "#ddd");
+                graphics.centerText(this.game.course.name, (graphics.height() / 2), this.fontBigger);
+                graphics.centerText("Par " + this.game.course.par, (graphics.height() / 2) + 35, this.fontBig, "#ddd");
+                graphics.alpha(1);
+            }
         }
+
+        if (this.players && this.lastSink && Date.now() - this.lastSink.time < 3000) {
+            const playerData = this.game.players.find(p => p.playerId === this.lastSink?.playerId);
+            if (playerData) {
+                const sinceShown = Date.now() - this.lastSink.time;
+                let a = 1;
+                 if (sinceShown > 2500) {
+                    a = 1 - ((sinceShown - 2500) / 500);
+                }
+                graphics.alpha(a);
+                graphics.fillRect(0, 10, graphics.width(), 45, "rgba(0,0,0,0.5)");
+                const message = this.players[this.lastSink.playerId].displayName + " gets a hole in " + playerData.shots + "!";
+                graphics.centerText(message, 28, this.fontSmall);
+                graphics.centerText("(" + this.toParName(this.game.course.par, playerData.shots) + ")", 48, this.fontSmall, "#ddd");
+                graphics.alpha(1);
+            }
+        }
+
+        if ((this.courseComplete || this.gameOver) && this.game && this.players) {
+            let y = 100;
+            graphics.fillRect(0, y-40, graphics.width(), 50, "rgba(0,0,0,0.5)");
+            graphics.centerText(this.gameOver ? "Game Over!" : "All Done!", y, this.fontBigger);
+            y += 50;
+
+            for (const player of [...this.game.players].sort((a, b) => a.totalShots - b.totalShots)) {
+                const name = this.players[player.playerId]?.displayName ?? "";
+                const score = player.totalShots;
+
+                let type = 5;
+                const size = 12;
+                if (player) {
+                    type = player.playerType;
+                }
+
+                graphics.fillRect(0, y-25, graphics.width(), 30, "rgba(0,0,0,0.5)");
+                graphics.drawImage(this.playerBalls[type], 4,  2 + y - size * 2, size * 2, size * 2);
+                graphics.drawText(35, y, name, this.fontBig);
+                graphics.drawText(graphics.width() - 10 - graphics.textWidth(""+score, this.fontBig), y, ""+score, this.fontBig);
+                y += 35;
+            }
+        }
+    }
+
+    toParName(par: number, shots: number): string {
+        const diff = shots - par;
+        switch (diff) {
+            case -1:
+                return "Birdie!";
+            case -2:
+                return "Eagle!";
+            case -3:
+                return "Albatross!";
+            case -4:
+                return "Condor!";
+            case 1:
+                return "Bogey";
+            case 2:
+                return "Double Bogey";
+            case 3:
+                return "Triple Bogey";
+        }
+
+        if (par < shots) {
+            return (shots - par) + " over par";
+        }
+        if (par > shots) {
+            return (par - shots) + " under par";
+        }
+        return "Par";
     }
 
     drawWorld(game: GameState, world: physics.World) {

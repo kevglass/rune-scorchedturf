@@ -5,6 +5,7 @@ import { ASSETS } from "./lib/rawassets";
 export const localPhysics = true;
 export const ballSize = 18;
 export const maxPower = 200;
+export const goalSize = 30;
 
 export const courses = [
   "course1.svg",
@@ -27,11 +28,12 @@ function parseSVGTransform(a: any) {
 
 export interface GameEvent {
   id: number;
-  type: "shoot" | "newCourse"
+  type: "shoot" | "newCourse" | "gameOver";
   playerId: string;
   dx?: number;
   dy?: number;
   power?: number;
+  courseNumber: number;
 }
 
 export interface Course {
@@ -152,10 +154,14 @@ export interface GameState {
   players: PlayerBall[];
   whoseTurn?: PlayerId;
   startPhysicsTime: number;
+  nextTurnAt: number;
+  nextCourseAt: number;
   events: GameEvent[];
   executed: number;
   nextId: number;
   nextTurnAtRest: boolean;
+  courseNumber: number;
+  completed: string[];
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -173,6 +179,7 @@ export type GameUpdate = {
 
 type GameActions = {
   shoot: (params: { dx: number, dy: number, power: number }) => void;
+  reachedGoal: (params: { playerId: string, courseId: number }) => void;
   endTurn: () => void;
 }
 
@@ -205,12 +212,12 @@ export function processUpdates(game: GameState, world: physics.World, executed: 
   return executed;
 }
 
-export function runUpdate(game: GameState, world: physics.World, executed: number): number {
+export function runUpdate(game: GameState, world: physics.World, executed: number, completed: string[]): number {
   executed = processUpdates(game, world, executed);
 
   if (game.whoseTurn) {
     const player = game.players.find(p => p.playerId === game.whoseTurn);
-    if (player && !world.dynamicBodies.find(b => b.data?.playerId === player.playerId)) {
+    if (player && !world.dynamicBodies.find(b => b.data?.playerId === player.playerId) && !completed.includes(player.playerId)) {
       const ball = physics.createCircle(world, physics.newVec2(game.course.start.x, game.course.start.y), ballSize, 10, 1, 1);
       ball.data = { playerId: player.playerId };
       physics.addBody(world, ball);
@@ -233,18 +240,34 @@ function nextTurn(state: GameState): void {
   if (state.players.length === 0) {
     return;
   }
-
-  let index = state.players.findIndex(p => p.playerId === state.whoseTurn);
-  if (index >= 0) {
-    index++;
-    if (index > state.players.length - 1) {
-      index = 0;
+  if (state.nextCourseAt !== 0) {
+    return;
+  }
+  const possible = state.players.filter(p => !state.completed.includes(p.playerId));
+  if (possible.length === 0) {
+    if (state.courseNumber >= courses.length - 1) {
+      state.events.push({
+        id: state.nextId++,
+        playerId: "",
+        type: "gameOver",
+        courseNumber: state.courseNumber
+      });
+      Rune.gameOver();
+    } else {
+      state.nextCourseAt = Rune.gameTime() + 8000;
     }
-  } else {
-    index = 0;
+    return;
   }
 
-  state.whoseTurn = state.players[index].playerId;
+  let current = state.whoseTurn ? state.players.findIndex(p => p.playerId === state.whoseTurn) : -1;
+  do {
+    current++;
+    if (current >= state.players.length) {
+      current = 0;
+    }
+  } while (state.completed.includes(state.players[current].playerId));
+
+  state.whoseTurn = state.players[current].playerId;
 }
 
 function addPlayer(world: physics.World, state: GameState, id: PlayerId): void {
@@ -270,17 +293,26 @@ function removePlayer(state: GameState, id: PlayerId): void {
   state.players = state.players.filter(p => p.playerId !== id);
 }
 
+function loadNextCourse(game: GameState): void {
+  game.courseNumber++;
+  game.course = loadCourse(courses[game.courseNumber]);
+  startCourse(game);
+}
+
 function startCourse(game: GameState): void {
   game.events.push({
     id: game.nextId++,
     playerId: "",
-    type: "newCourse"
+    type: "newCourse",
+    courseNumber: game.courseNumber
   });
+  game.completed = [];
 
   for (const player of game.players) {
-    player.totalShots += player.shots;
     player.shots = 0;
   }
+
+  game.whoseTurn = game.players[0].playerId;
 }
 
 Rune.initLogic({
@@ -295,7 +327,11 @@ Rune.initLogic({
       events: [],
       executed: 0,
       nextId: 1,
-      nextTurnAtRest: false
+      nextTurnAtRest: false,
+      courseNumber: 0,
+      completed: [],
+      nextTurnAt: 0,
+      nextCourseAt: 0
     }
 
     for (const player of allPlayerIds) {
@@ -319,34 +355,50 @@ Rune.initLogic({
   updatesPerSecond: 30,
   update: (context) => {
     if (!localPhysics) {
-      context.game.executed = runUpdate(context.game, context.game.course.world, context.game.executed,);
+      context.game.executed = runUpdate(context.game, context.game.course.world, context.game.executed, context.game.completed);
     } else {
       context.game.executed = processUpdates(context.game, context.game.course.world, context.game.executed);
     }
 
-    if (context.game.whoseTurn && !context.allPlayerIds.includes(context.game.whoseTurn)) {
+    if (context.game.nextTurnAt !== 0 && Rune.gameTime() > context.game.nextTurnAt) {
       nextTurn(context.game);
+      context.game.nextTurnAt = 0;
+    } else if (context.game.whoseTurn && !context.allPlayerIds.includes(context.game.whoseTurn)) {
+      nextTurn(context.game);
+    }
+
+    if (context.game.nextCourseAt !== 0 && Rune.gameTime() > context.game.nextCourseAt) {
+      context.game.nextCourseAt = 0;
+      loadNextCourse(context.game);
     }
   },
   actions: {
+    reachedGoal: (params: { playerId: string, courseId: number }, context) => {
+      if (params.courseId === context.game.courseNumber) {
+        context.game.completed.push(params.playerId);
+      }
+    },
     shoot: (params: { dx: number, dy: number, power: number }, context) => {
       const player = context.game.players?.find(p => p.playerId === context.playerId);
       if (player) {
         player.shots++;
+        player.totalShots++;
+
         context.game.events.push({
           id: context.game.nextId++,
           playerId: context.playerId,
           type: "shoot",
           dx: params.dx,
           dy: params.dy,
-          power: params.power
+          power: params.power,
+          courseNumber: context.game.courseNumber
         })
         context.game.startPhysicsTime = Rune.gameTime() + 500;
       }
     },
     endTurn: (params, context) => {
       if (context.game.whoseTurn === context.playerId) {
-        nextTurn(context.game);
+        context.game.nextTurnAt = Rune.gameTime() + 1000;
       }
     }
   },
