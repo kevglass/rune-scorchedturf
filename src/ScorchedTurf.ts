@@ -1,5 +1,5 @@
-import { graphics, physics } from "togl";
-import { ballSize, GameState, GameUpdate, MaterialType, localPhysics, maxPower, runUpdate, goalSize } from "./logic";
+import { graphics, physics, sound } from "togl";
+import { ballSize, GameState, GameUpdate, MaterialType, localPhysics, maxPower, runUpdate, goalSize, ActionListener } from "./logic";
 import { ASSETS } from "./lib/assets";
 import { PlayerId, Players } from "rune-games-sdk";
 
@@ -12,9 +12,9 @@ const nthStrings = [
 ]
 
 const PARTICLE_LIFE = 10; // frames
-const PARTICLE_SIZE = 25;
+const PARTICLE_SIZE = 15;
 
-interface Particle {
+interface TrailPoint {
     life: number;
     x: number;
     y: number;
@@ -25,7 +25,7 @@ interface Sink {
     time: number;
 }
 
-export class ScorchedTurf implements graphics.Game {
+export class ScorchedTurf implements graphics.Game, ActionListener {
     game?: GameState;
 
     gradient = [
@@ -80,7 +80,7 @@ export class ScorchedTurf implements graphics.Game {
     showTitle = false;
     showTitleTimer = 0;
 
-    particles: Particle[] = [];
+    trail: TrailPoint[] = [];
     courseNumber = -1;
     completed: string[] = [];
 
@@ -89,8 +89,23 @@ export class ScorchedTurf implements graphics.Game {
     lastSink?: Sink;
     gameOver = false;
 
+    outOfBoundsTimer = 0;
+
+    frameCount = 0;
+
+    elements: Record<string, graphics.GameImage> = {};
+
+    sfxSwish: sound.Sound;
+    sfxHit: sound.Sound;
+    sfxHole: sound.Sound;
+    lastHitSound = 0;
+
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 2048);
+
+        this.sfxSwish = sound.loadSound(ASSETS["swing.mp3"]);
+        this.sfxHit = sound.loadSound(ASSETS["hit.mp3"]);
+        this.sfxHole = sound.loadSound(ASSETS["hole.mp3"]);
 
         this.fontSmall = graphics.generateFont(16, "white");
         this.fontBig = graphics.generateFont(24, "white");
@@ -98,6 +113,13 @@ export class ScorchedTurf implements graphics.Game {
         this.arrow = graphics.loadImage(ASSETS["arrow.png"], true, "arrow", true);
         this.logo = graphics.loadImage(ASSETS["logo.png"]);
         this.whiteCircle = graphics.loadImage(ASSETS["whitecircle.png"]);
+
+        this.elements.tree1 = graphics.loadImage(ASSETS["elements/tree1.png"], true, "tree1", true);
+        this.elements.tree2 = graphics.loadImage(ASSETS["elements/tree2.png"], true, "tree2", true);
+        this.elements.tree3 = graphics.loadImage(ASSETS["elements/tree3.png"], true, "tree3", true);
+        this.elements.tree4 = graphics.loadImage(ASSETS["elements/tree4.png"], true, "tree4", true);
+        this.elements.grass1 = graphics.loadImage(ASSETS["elements/grass1.png"], true, "grass1", true);
+        this.elements.grass2 = graphics.loadImage(ASSETS["elements/grass2.png"], true, "grass2", true);
 
         this.playerBalls = [
             graphics.loadImage(ASSETS["parrot.png"], true, "parrot", true),
@@ -135,19 +157,29 @@ export class ScorchedTurf implements graphics.Game {
         }
     }
 
+    shot(): void {
+        sound.playSound(this.sfxSwish);
+    }
+
+    hole(): void {
+        sound.playSound(this.sfxHole);
+    }
+
+    collision(maxDepth: number): void {
+        if (Date.now() - this.lastHitSound > 250) {
+            const depth = Math.min(maxDepth, 3)
+            if (depth > 0.3) {
+                sound.playSound(this.sfxHit, depth / 6);
+                this.lastHitSound = Date.now();
+            }
+        }
+    }
+
     get courseComplete(): boolean {
         return (this.game && this.players && Object.values(this.players).length <= this.completed.length) ? true : false;
     }
 
     start(): void {
-        // tell rune to let us know when a game
-        // update happens
-        Rune.initClient({
-            onChange: (update) => {
-                this.gameUpdate(update);
-            },
-        });
-
         graphics.startRendering(this);
     }
 
@@ -158,6 +190,11 @@ export class ScorchedTurf implements graphics.Game {
         this.localPlayerId = update.yourPlayerId;
         this.players = update.players;
 
+        if (this.game.startGame) {
+            this.gameOver = false;
+            this.executed = 0;
+        }
+
         for (const event of this.game.events) {
             if (event.id > this.executed) {
                 if (event.type === "newCourse") {
@@ -167,6 +204,7 @@ export class ScorchedTurf implements graphics.Game {
                     this.showTitleTimer = Date.now();
                     this.courseNumber = event.courseNumber;
                     this.completed = [];
+                    this.gameOver = false;
                 }
                 if (event.type === "gameOver") {
                     this.gameOver = true;
@@ -176,7 +214,7 @@ export class ScorchedTurf implements graphics.Game {
         }
 
         if (this.localWorld && update.event?.name === "update") {
-            this.executed = runUpdate(update.game, this.localWorld, this.executed, this.completed);
+            this.executed = runUpdate(update.game, this.localWorld, this.executed, this.completed, this);
 
             if (!physics.atRest(this.localWorld)) {
                 this.dragOffsetX = 0;
@@ -189,17 +227,27 @@ export class ScorchedTurf implements graphics.Game {
                 }
             }
 
-            for (const p of [...this.particles]) {
+            const currentBody = this.localWorld.dynamicBodies.find(p => p.data.playerId === this.game?.whoseTurn);
+            if (currentBody?.data.outOfBounds) {
+                this.outOfBoundsTimer = Date.now() + 2000;
+                currentBody.data.outOfBounds = false;
+                this.trail = [];
+            }
+
+            for (const p of [...this.trail]) {
                 p.life--;
                 if (p.life <= 0) {
-                    this.particles.splice(this.particles.indexOf(p));
+                    this.trail.splice(this.trail.indexOf(p));
                 }
             }
+
+            this.frameCount++;
 
             if (!physics.atRest(this.localWorld)) {
                 for (const body of [...this.localWorld.dynamicBodies]) {
                     const distanceToGoal = physics.lengthVec2(physics.subtractVec2(this.game.course.goal, body.center));
                     if (distanceToGoal < body.bounds + goalSize) {
+                        sound.playSound(this.sfxHole);
                         this.completed.push(body.data.playerId);
                         physics.removeBody(this.localWorld, body);
                         setTimeout(() => {
@@ -210,11 +258,15 @@ export class ScorchedTurf implements graphics.Game {
                             time: Date.now()
                         }
                     } else {
-                        this.particles.push({
-                            life: PARTICLE_LIFE,
-                            x: body.center.x,
-                            y: body.center.y
-                        });
+                        if (body == this.currentBody && this.outOfBoundsTimer < Date.now() && physics.lengthVec2(body.velocity) > 10) {
+                            if (this.frameCount % 2 === 0) {
+                                this.trail.splice(0, 0, {
+                                    life: PARTICLE_LIFE,
+                                    x: body.center.x,
+                                    y: body.center.y
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -222,6 +274,9 @@ export class ScorchedTurf implements graphics.Game {
     }
 
     mouseDown(x: number, y: number): void {
+        if (this.gameOver) {
+            return;
+        }
         if (this.atStart) {
             this.atStart = false;
             this.showTitleTimer = Date.now();
@@ -236,6 +291,10 @@ export class ScorchedTurf implements graphics.Game {
         if (y > graphics.height() - 60) {
             this.dragOffsetX = 0;
             this.dragOffsetY = 0;
+            return;
+        }
+
+        if (this.outOfBoundsTimer !== 0 && this.outOfBoundsTimer > Date.now()) {
             return;
         }
 
@@ -320,6 +379,15 @@ export class ScorchedTurf implements graphics.Game {
     resourcesLoaded(): void {
         // do nothing
         this.assetsLoaded = true;
+
+        // tell rune to let us know when a game
+        // update happens
+        Rune.initClient({
+            onChange: (update) => {
+                this.gameUpdate(update);
+            },
+        });
+
     }
 
     threePatch(tiles: graphics.TileSet, x: number, y: number, width: number, height: number) {
@@ -381,9 +449,13 @@ export class ScorchedTurf implements graphics.Game {
                 this.vy = this.currentBody.averageCenter.y;
             }
 
-            this.cameraX = (this.cameraX * 0.7) + (this.vx * 0.3);
-            this.cameraY = (this.cameraY * 0.7) + (this.vy * 0.3);
-
+            if (physics.atRest(this.currentWorld)) {
+                this.cameraX = (this.cameraX * 0.7) + (this.vx * 0.3);
+                this.cameraY = (this.cameraY * 0.7) + (this.vy * 0.3);
+            } else {
+                this.cameraX = this.vx;
+                this.cameraY = this.vy;
+            }
             this.cameraX += this.dragOffsetX;
             this.cameraY += this.dragOffsetY;
 
@@ -399,12 +471,28 @@ export class ScorchedTurf implements graphics.Game {
             graphics.drawImage(this.whiteCircle, this.game.course.goal.x - Math.floor(goalSize / 2), this.game.course.goal.y - (goalSize / 2), goalSize, goalSize);
             graphics.alpha(1);
 
-            for (const p of this.particles) {
-                const a = p.life / PARTICLE_LIFE;
-                graphics.alpha(a);
-                const size = PARTICLE_SIZE - (10 * (1 - a));
-                if (size > 0) {
-                    graphics.drawImage(this.whiteCircle, p.x - Math.floor(size / 2), p.y - Math.floor(size / 2), size, size);
+            this.drawBackground(this.game, this.localWorld ?? this.game.course.world);
+            if (this.currentBody) {
+                let tx = this.currentBody.averageCenter.x;
+                let ty = this.currentBody.averageCenter.y;
+                for (let i = 0; i < this.trail.length; i++) {
+                    const pt = this.trail[i];
+
+                    const dx = tx - pt.x;
+                    const dy = ty - pt.y;
+                    const len = Math.sqrt((dx * dx) + (dy * dy));
+
+                    const a = pt.life / PARTICLE_LIFE;
+                    const size = PARTICLE_SIZE - (10 * (1 - a));
+                    graphics.alpha(a);
+                    graphics.push();
+                    graphics.translate(pt.x, pt.y);
+                    graphics.rotate(Math.atan2(dy, dx));
+                    graphics.fillRect(0, -size, len + 4, size * 2, "white");
+                    graphics.pop();
+
+                    tx = pt.x;
+                    ty = pt.y;
                 }
             }
             graphics.alpha(1);
@@ -471,12 +559,15 @@ export class ScorchedTurf implements graphics.Game {
                 a = 1 - ((sinceShown - 1500) / 500);
             }
             if (this.showTitle) {
+                graphics.push();
+                graphics.translate(0, -100);
                 graphics.alpha(a);
                 graphics.fillRect(0, (graphics.height() / 2) - 70, graphics.width(), 120, "rgba(0,0,0,0.5)");
                 graphics.centerText("Hole " + (this.courseNumber + 1), (graphics.height() / 2) - 40, this.fontBig, "#ddd");
                 graphics.centerText(this.game.course.name, (graphics.height() / 2), this.fontBigger);
                 graphics.centerText("Par " + this.game.course.par, (graphics.height() / 2) + 35, this.fontBig, "#ddd");
                 graphics.alpha(1);
+                graphics.pop();
             }
         }
 
@@ -485,7 +576,7 @@ export class ScorchedTurf implements graphics.Game {
             if (playerData) {
                 const sinceShown = Date.now() - this.lastSink.time;
                 let a = 1;
-                 if (sinceShown > 2500) {
+                if (sinceShown > 2500) {
                     a = 1 - ((sinceShown - 2500) / 500);
                 }
                 graphics.alpha(a);
@@ -497,9 +588,13 @@ export class ScorchedTurf implements graphics.Game {
             }
         }
 
+        if (this.outOfBoundsTimer > Date.now()) {
+            graphics.fillRect(0, 60, graphics.width(), 50, "rgba(0,0,0,0.5)");
+            graphics.centerText("Out of Bounds!", 100, this.fontBigger);
+        }
         if ((this.courseComplete || this.gameOver) && this.game && this.players) {
             let y = 100;
-            graphics.fillRect(0, y-40, graphics.width(), 50, "rgba(0,0,0,0.5)");
+            graphics.fillRect(0, y - 40, graphics.width(), 50, "rgba(0,0,0,0.5)");
             graphics.centerText(this.gameOver ? "Game Over!" : "All Done!", y, this.fontBigger);
             y += 50;
 
@@ -513,10 +608,10 @@ export class ScorchedTurf implements graphics.Game {
                     type = player.playerType;
                 }
 
-                graphics.fillRect(0, y-25, graphics.width(), 30, "rgba(0,0,0,0.5)");
-                graphics.drawImage(this.playerBalls[type], 4,  2 + y - size * 2, size * 2, size * 2);
+                graphics.fillRect(0, y - 25, graphics.width(), 30, "rgba(0,0,0,0.5)");
+                graphics.drawImage(this.playerBalls[type], 4, 2 + y - size * 2, size * 2, size * 2);
                 graphics.drawText(35, y, name, this.fontBig);
-                graphics.drawText(graphics.width() - 10 - graphics.textWidth(""+score, this.fontBig), y, ""+score, this.fontBig);
+                graphics.drawText(graphics.width() - 10 - graphics.textWidth("" + score, this.fontBig), y, "" + score, this.fontBig);
                 y += 35;
             }
         }
@@ -550,6 +645,30 @@ export class ScorchedTurf implements graphics.Game {
         return "Par";
     }
 
+    drawBackground(game: GameState, world: physics.World) {
+        if (world) {
+            const all = physics.allBodies(world);
+            for (const body of all) {
+                // Draw
+                // ----
+                graphics.push();
+
+                graphics.translate(body.averageCenter.x, body.averageCenter.y);
+                graphics.rotate(Math.floor(body.averageAngle * 10) / 10);
+
+                if (body.type === physics.ShapeType.CIRCLE) {
+                    if (body.data.sprite) {
+                        const image = this.elements[body.data.sprite];
+                        if (image) {
+                            graphics.drawImage(image, Math.floor(-image.width / 2), -image.height);
+                        }
+                    } 
+                }
+                graphics.pop();
+            }
+        }
+    }
+
     drawWorld(game: GameState, world: physics.World) {
         if (world) {
             const all = physics.allBodies(world);
@@ -562,25 +681,29 @@ export class ScorchedTurf implements graphics.Game {
                 graphics.rotate(Math.floor(body.averageAngle * 10) / 10);
 
                 if (body.type === physics.ShapeType.CIRCLE) {
-                    const size = body.bounds + 1;
-                    if (body.data && body.data.playerId) {
-                        const player = game.players.find(p => p.playerId === body.data.playerId);
-                        let type = 5;
-                        if (player) {
-                            type = player.playerType;
-                        }
-                        graphics.drawImage(this.playerBalls[type], -size, -size, size * 2, size * 2);
+                    if (body.data.sprite) {
+                        // drawn on the background layer
                     } else {
-                        const image = this.materials[body.data?.type as MaterialType]?.circle;
-                        if (image) {
-                            graphics.drawImage(image, -size, -size, size * 2, size * 2);
+                        const size = body.bounds + 1;
+                        if (body.data && body.data.playerId) {
+                            const player = game.players.find(p => p.playerId === body.data.playerId);
+                            let type = 5;
+                            if (player) {
+                                type = player.playerType;
+                            }
+                            graphics.drawImage(this.playerBalls[type], -size, -size, size * 2, size * 2);
+                        } else {
+                            const image = this.materials[body.data?.type as MaterialType]?.circle;
+                            if (image) {
+                                graphics.drawImage(image, -size, -size, size * 2, size * 2);
+                            }
                         }
                     }
                 } else {
                     const width = body.width + 2;
                     const height = body.height + 2;
                     const tileset = this.materials[body.data.type as MaterialType].rect;
-                    this.threePatch(tileset, -width / 2, -height / 2, width, height);
+                    this.threePatch(tileset, -width / 2, -height / 2, width, height + 10); // account for shadow
                 }
 
                 graphics.pop();

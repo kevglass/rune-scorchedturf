@@ -28,7 +28,7 @@ function parseSVGTransform(a: any) {
 
 export interface GameEvent {
   id: number;
-  type: "shoot" | "newCourse" | "gameOver";
+  type: "shoot" | "newCourse" | "gameOver" | "startGame";
   playerId: string;
   dx?: number;
   dy?: number;
@@ -115,7 +115,18 @@ export function loadCourse(name: string): Course {
     const type = SVG_COLOR_MAP[circle.fill] ?? MaterialType.GRASS;
     body.data = { type };
 
+    const transform = parseSVGTransform(circle.transform);
+    if (transform.rotate) {
+      physics.rotateBody(body, transform.rotate[0] * Math.PI / 180);
+    }
+
     physics.addBody(world, body);
+
+    if (circle.class) {
+      body.data.sprite = circle.class;
+      physics.disableBody(world, body);
+    }
+
   }
 
   if (!Array.isArray(root.rect)) {
@@ -149,6 +160,14 @@ export function loadCourse(name: string): Course {
   };
 }
 
+export interface ActionListener {
+  shot(): void;
+
+  hole(): void;
+
+  collision(maxDepth: number): void;
+}
+
 export interface GameState {
   course: Course;
   players: PlayerBall[];
@@ -162,6 +181,8 @@ export interface GameState {
   nextTurnAtRest: boolean;
   courseNumber: number;
   completed: string[];
+  gameOver: boolean;
+  startGame: boolean;
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -195,12 +216,15 @@ function applyShoot(world: physics.World, bodyId: number, dx: number, dy: number
   }
 }
 
-export function processUpdates(game: GameState, world: physics.World, executed: number): number {
+export function processUpdates(game: GameState, world: physics.World, executed: number, actionListener: ActionListener): number {
   for (const event of game.events) {
     if (event.id > executed) {
       if (event.type === "shoot" && event.dx && event.dy && event.power) {
         const body = world.dynamicBodies.find(b => b.data?.playerId === event.playerId);
         if (body) {
+          actionListener.shot();
+          body.data.initialX = body.center.x;
+          body.data.initialY = body.center.y;
           applyShoot(world, body.id, event.dx, event.dy, event.power);
         }
       }
@@ -209,13 +233,23 @@ export function processUpdates(game: GameState, world: physics.World, executed: 
     }
   }
 
+  for (const body of world.dynamicBodies) {
+    if (body.center.y > physics.getWorldBounds(world, true).max.y + 100) {
+      body.velocity.x = 0;
+      body.velocity.y = 0;
+      body.center.x = body.averageCenter.x = body.data.initialX;
+      body.center.y = body.averageCenter.y = body.data.initialY;
+      body.data.outOfBounds = true;
+    }
+  }
+
   return executed;
 }
 
-export function runUpdate(game: GameState, world: physics.World, executed: number, completed: string[]): number {
-  executed = processUpdates(game, world, executed);
+export function runUpdate(game: GameState, world: physics.World, executed: number, completed: string[], actionListener: ActionListener): number {
+  executed = processUpdates(game, world, executed, actionListener);
 
-  if (game.whoseTurn) {
+  if (game.whoseTurn && !game.gameOver) {
     const player = game.players.find(p => p.playerId === game.whoseTurn);
     if (player && !world.dynamicBodies.find(b => b.data?.playerId === player.playerId) && !completed.includes(player.playerId)) {
       const ball = physics.createCircle(world, physics.newVec2(game.course.start.x, game.course.start.y), ballSize, 10, 1, 1);
@@ -229,8 +263,12 @@ export function runUpdate(game: GameState, world: physics.World, executed: numbe
 
   if (Rune.gameTime() - game.startPhysicsTime < 2000 ||
     !physics.atRest(world)) {
-    physics.worldStep(30, world);
-    physics.worldStep(30, world);
+    const firstSet = physics.worldStep(30, world);
+    const secondSet =  physics.worldStep(30, world);
+    if (firstSet.length > 0 || secondSet.length > 0) {
+      const maxDepth = Math.max(...firstSet.map(c => c.depth),...secondSet.map(c => c.depth));
+      actionListener.collision(maxDepth);
+    }
   }
 
   return executed;
@@ -252,6 +290,7 @@ function nextTurn(state: GameState): void {
         type: "gameOver",
         courseNumber: state.courseNumber
       });
+      state.gameOver = true;
       Rune.gameOver();
     } else {
       state.nextCourseAt = Rune.gameTime() + 8000;
@@ -331,7 +370,9 @@ Rune.initLogic({
       courseNumber: 0,
       completed: [],
       nextTurnAt: 0,
-      nextCourseAt: 0
+      nextCourseAt: 0,
+      gameOver: false,
+      startGame: true
     }
 
     for (const player of allPlayerIds) {
@@ -354,10 +395,23 @@ Rune.initLogic({
   },
   updatesPerSecond: 30,
   update: (context) => {
+    context.game.startGame = false;
+
+    const listener: ActionListener = {
+      shot: () => { 
+        // do nothing 
+      },
+      hole: () => { 
+        // do nothing 
+      },
+      collision: () => { 
+        // do nothing 
+      }
+    }
     if (!localPhysics) {
-      context.game.executed = runUpdate(context.game, context.game.course.world, context.game.executed, context.game.completed);
+      context.game.executed = runUpdate(context.game, context.game.course.world, context.game.executed, context.game.completed, listener);
     } else {
-      context.game.executed = processUpdates(context.game, context.game.course.world, context.game.executed);
+      context.game.executed = processUpdates(context.game, context.game.course.world, context.game.executed, listener);
     }
 
     if (context.game.nextTurnAt !== 0 && Rune.gameTime() > context.game.nextTurnAt) {

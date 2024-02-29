@@ -8,6 +8,7 @@ const ALL_ASSETS = import.meta.glob("../assets/**/*", {
     
 }) as Record<string, string>;
 
+
 export const ASSETS: Record<string, string> = {};
 
 for (const key in ALL_ASSETS) {
