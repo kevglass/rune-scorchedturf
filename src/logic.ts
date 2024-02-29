@@ -252,7 +252,7 @@ export function runUpdate(game: GameState, world: physics.World, executed: numbe
   if (game.whoseTurn && !game.gameOver) {
     const player = game.players.find(p => p.playerId === game.whoseTurn);
     if (player && !world.dynamicBodies.find(b => b.data?.playerId === player.playerId) && !completed.includes(player.playerId)) {
-      const ball = physics.createCircle(world, physics.newVec2(game.course.start.x, game.course.start.y), ballSize, 10, 1, 1);
+      const ball = physics.createCircle(world, physics.newVec2(game.course.start.x + (game.players.indexOf(player) * 1), game.course.start.y), ballSize, 10, 1, 1);
       ball.data = { playerId: player.playerId };
       physics.addBody(world, ball);
     }
