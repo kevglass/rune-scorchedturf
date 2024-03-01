@@ -57,6 +57,7 @@ export enum MaterialType {
   STONE1 = 3,
   STONE2 = 4,
   STONE3 = 5,
+  WATER = 6,
 }
 
 const SVG_COLOR_MAP: Record<string, MaterialType> = {
@@ -150,6 +151,10 @@ export function loadCourse(name: string): Course {
 
     if (transform.rotate) {
       physics.rotateBody(body, transform.rotate[0] * Math.PI / 180);
+    }
+    if (rect.class === "water") {
+      body.permeability = 0.05;
+      body.data.type = MaterialType.WATER;
     }
 
     physics.addBody(world, body);
