@@ -39,7 +39,7 @@ export interface ShootEvent extends CommonEvent {
   power: number;
 }
 
-export interface NewCourseEvent extends CommonEvent  {
+export interface NewCourseEvent extends CommonEvent {
   type: "newCourse",
   course: Course,
   courseNumber: number
@@ -73,6 +73,8 @@ export enum MaterialType {
   WATER = 6,
   BOUNCER = 7,
   BLOCK = 8,
+  PEG = 10,
+  WOOD = 11
 }
 
 const SVG_COLOR_MAP: Record<string, MaterialType> = {
@@ -83,34 +85,22 @@ const SVG_COLOR_MAP: Record<string, MaterialType> = {
   "#487d8f": MaterialType.STONE3,
   "#ffff00": MaterialType.BOUNCER,
   "#0000ff": MaterialType.BLOCK,
+  "#00ffff": MaterialType.PEG,
+  "#ff00ff": MaterialType.WOOD,
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyBodyLogic(element: any, world: physics.World, body: physics.Body): void {
   if (body.data.type === MaterialType.BOUNCER) {
     body.data.originalBounds = body.bounds;
   }
-  if (element.class === "pin") {
+  if (element.class === "spin") {
     const pin = physics.createCircle(world, physics.newVec2(body.center.x, body.center.y), 0, 0, 1, 0.5);
     physics.addBody(world, pin);
     pin.data = {};
     body.data.pinned = true;
     physics.disableBody(world, pin);
     physics.createJoint(world, pin, body, 1, 0);
-  }
-  if (element.class && element.class.indexOf("-")) {
-    const parts = element.class.split("-");
-    const command = parts[0];
-    const value1 = Number.parseInt(parts[1]);
-    const value2 = Number.parseInt(parts[2]);
-    if (command === "down") {
-      body.data.distance = value1;
-      body.data.dx = 0;
-      body.data.dy = value2;
-      body.data.move = 0;
-    }
-    if (command === "rotate") {
-      body.data.adx = value1;
-    }
   }
 }
 
@@ -121,6 +111,7 @@ export function loadCourse(name: string): Course {
   const world = physics.createWorld(physics.newVec2(0, 200));
   // global friction 
   world.damp = world.angularDamp = 0.94;
+  world.jointRestriction = 5;
 
   const root = document.svg.g;
   const start: physics.Vector2 = physics.newVec2(0, 0);
@@ -158,9 +149,9 @@ export function loadCourse(name: string): Course {
       continue;
     }
 
-    const body = physics.createCircle(world, physics.newVec2(cx, cy), rx, 0, 1, 0.5);
+    const body = physics.createCircle(world, physics.newVec2(cx, cy), rx, circle.class === "spin" || circle.class === "dynamic" ? 1 : 0, 1, 0.5);
     const type = SVG_COLOR_MAP[circle.fill] ?? MaterialType.GRASS;
-    body.data = { type };
+    body.data = { type, svgId: circle.id }
 
     const transform = parseSVGTransform(circle.transform);
     if (transform.rotate) {
@@ -169,7 +160,7 @@ export function loadCourse(name: string): Course {
 
     physics.addBody(world, body);
 
-    if (circle.class) {
+    if (circle.class && fill === "#000000") {
       body.data.sprite = circle.class;
       physics.disableBody(world, body);
     }
@@ -192,9 +183,9 @@ export function loadCourse(name: string): Course {
     const cy = Math.floor(Number.parseFloat(rect.y ?? "0") + (height / 2));
 
     const transform = parseSVGTransform(rect.transform);
-    const body = physics.createRectangle(world, physics.newVec2(cx, cy), width, height, rect.class === "pin" ? 1 : 0, 1, 0.5);
+    const body = physics.createRectangle(world, physics.newVec2(cx, cy), width, height, rect.class === "spin" || rect.class === "dynamic" ? 1 : 0, 1, 0.5);
     const type = SVG_COLOR_MAP[rect.fill] ?? MaterialType.GRASS;
-    body.data = { type };
+    body.data = { type, svgId: rect.id };
 
     if (transform.rotate) {
       physics.rotateBody(body, transform.rotate[0] * Math.PI / 180);
@@ -207,6 +198,21 @@ export function loadCourse(name: string): Course {
     physics.addBody(world, body);
 
     applyBodyLogic(rect, world, body);
+  }
+
+  if (root.polyline) {
+    if (!Array.isArray(root.polyline)) {
+      root.polyline = [root.polyline];
+    }
+    for (const line of root.polyline) {
+      const parts = line["se:connector"].split(" ");
+      const bodyA = physics.allBodies(world).find(b => b.data.svgId === parts[0]);
+      const bodyB = physics.allBodies(world).find(b => b.data.svgId === parts[1]);
+
+      if (bodyA && bodyB) {
+        physics.createJoint(world, bodyA, bodyB, 1, 0);
+      }
+    }
   }
 
   return {

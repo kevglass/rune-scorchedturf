@@ -40,6 +40,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     playerBalls: graphics.GameImage[] = [];
     background!: graphics.GameImage;
     arrow!: graphics.GameImage;
+    chain!: graphics.GameImage;
     logo!: graphics.GameImage;
     whiteCircle!: graphics.GameImage;
     spinRing!: graphics.GameImage;
@@ -120,6 +121,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         this.logo = graphics.loadImage(ASSETS["logo.png"]);
         this.whiteCircle = graphics.loadImage(ASSETS["whitecircle.png"]);
         this.spinRing = graphics.loadImage(ASSETS["spinring.png"]);
+        this.chain = graphics.loadImage(ASSETS["chain.png"]);
+        
 
         this.elements.tree1 = graphics.loadImage(ASSETS["elements/tree1.png"], true, "tree1", true);
         this.elements.tree2 = graphics.loadImage(ASSETS["elements/tree2.png"], true, "tree2", true);
@@ -172,6 +175,14 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             [MaterialType.BLOCK]: {
                 rect: graphics.loadTileSet(ASSETS["block.png"], 45, 15),
                 circle: graphics.loadImage(ASSETS["block-round.png"])
+            },
+            [MaterialType.WOOD]: {
+                rect: graphics.loadTileSet(ASSETS["block.png"], 45, 15),
+                circle: graphics.loadImage(ASSETS["wood.png"])
+            },
+            [MaterialType.PEG]: {
+                rect: graphics.loadTileSet(ASSETS["block.png"], 45, 15),
+                circle: graphics.loadImage(ASSETS["peg.png"])
             },
         }
     }
@@ -898,7 +909,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     const length = physics.lengthVec2(physics.subtractVec2(bodyA.center, bodyB.center));
                     graphics.translate(bodyA.center.x, bodyA.center.y);
                     graphics.rotate(Math.atan2(bodyB.center.y - bodyA.center.y, bodyB.center.x - bodyA.center.x));
-                    graphics.fillRect(0, -2, length, 4, "black");
+                    graphics.drawImage(this.chain, 0, -6, length, 12);
                 }
 
                 graphics.pop();
