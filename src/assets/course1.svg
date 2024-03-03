@@ -44,5 +44,8 @@
   <rect fill="#a5e306" height="30" id="svg_27" stroke="#000" width="80" x="1820" y="160"/>
   <rect fill="#a8cbcc" height="40" id="svg_29" stroke="#000" transform="matrix(1 0 0 1 0 0)" width="60" x="150" y="460"/>
   <rect fill="#a5e306" height="30" id="svg_25" stroke="#000" transform="matrix(1 0 0 1 0 0)" width="80" x="140" y="450"/>
+  <rect class="pin" fill="#0000ff" height="20" id="svg_37" stroke="#000" transform="matrix(1 0 0 1 0 0)" width="130" x="860" y="470"/>
+  <rect class="rotate-1ss" fill="#0000ff" height="20" id="svg_48" stroke="#000" width="130" x="540" y="490"/>
+  <rect class="down-100-1" fill="#0000ff" height="90" id="svg_49" stroke="#000" transform="matrix(1 0 0 1 0 0)" width="20" x="460" y="470"/>
  </g>
 </svg>

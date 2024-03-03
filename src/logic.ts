@@ -58,6 +58,8 @@ export enum MaterialType {
   STONE2 = 4,
   STONE3 = 5,
   WATER = 6,
+  BOUNCER = 7,
+  BLOCK = 8,
 }
 
 const SVG_COLOR_MAP: Record<string, MaterialType> = {
@@ -66,6 +68,37 @@ const SVG_COLOR_MAP: Record<string, MaterialType> = {
   "#8bb8be": MaterialType.STONE1,
   "#5b8b95": MaterialType.STONE2,
   "#487d8f": MaterialType.STONE3,
+  "#ffff00": MaterialType.BOUNCER,
+  "#0000ff": MaterialType.BLOCK,
+}
+
+function applyBodyLogic(element: any, world: physics.World, body: physics.Body): void {
+  if (body.data.type === MaterialType.BOUNCER) {
+    body.data.originalBounds = body.bounds;
+  }
+  if (element.class === "pin") {
+    const pin = physics.createCircle(world, physics.newVec2(body.center.x, body.center.y), 0, 0, 1, 0.5);
+    physics.addBody(world, pin);
+    pin.data = {};
+    body.data.pinned = true;
+    physics.disableBody(world, pin);
+    physics.createJoint(world, pin, body, 1, 0);
+  }
+  if (element.class && element.class.indexOf("-")) {
+    const parts = element.class.split("-");
+    const command = parts[0];
+    const value1 = Number.parseInt(parts[1]);
+    const value2 = Number.parseInt(parts[2]);
+    if (command === "down") {
+      body.data.distance = value1;
+      body.data.dx = 0;
+      body.data.dy = value2;
+      body.data.move = 0;
+    }
+    if (command === "rotate") {
+      body.data.adx = value1;
+    }
+  }
 }
 
 export function loadCourse(name: string): Course {
@@ -128,6 +161,7 @@ export function loadCourse(name: string): Course {
       physics.disableBody(world, body);
     }
 
+    applyBodyLogic(circle, world, body);
   }
 
   if (!Array.isArray(root.rect)) {
@@ -145,7 +179,7 @@ export function loadCourse(name: string): Course {
     const cy = Math.floor(Number.parseFloat(rect.y ?? "0") + (height / 2));
 
     const transform = parseSVGTransform(rect.transform);
-    const body = physics.createRectangle(world, physics.newVec2(cx, cy), width, height, 0, 1, 0.5);
+    const body = physics.createRectangle(world, physics.newVec2(cx, cy), width, height, rect.class === "pin" ? 1 : 0, 1, 0.5);
     const type = SVG_COLOR_MAP[rect.fill] ?? MaterialType.GRASS;
     body.data = { type };
 
@@ -158,6 +192,8 @@ export function loadCourse(name: string): Course {
     }
 
     physics.addBody(world, body);
+
+    applyBodyLogic(rect, world, body);
   }
 
   return {
@@ -188,6 +224,7 @@ export interface GameState {
   completed: string[];
   gameOver: boolean;
   startGame: boolean;
+  frameCount: number;
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -269,12 +306,48 @@ export function runUpdate(game: GameState, world: physics.World, executed: numbe
   if (Rune.gameTime() - game.startPhysicsTime < 2000 ||
     !physics.atRest(world)) {
     const firstSet = physics.worldStep(30, world);
-    const secondSet =  physics.worldStep(30, world);
+    const secondSet = physics.worldStep(30, world);
+
+    for (const collision of [...firstSet, ...secondSet]) {
+      const bodyA = physics.enabledBodies(world).find(b => b.id === collision.bodyAId);
+      const bodyB = physics.enabledBodies(world).find(b => b.id === collision.bodyBId);
+      for (const body of [bodyA, bodyB]) {
+        if (body?.data?.originalBounds) {
+          body.bounds = body.data.originalBounds * 1.25;
+          if (!body.data?.deflate) {
+            const other = body === bodyA ? bodyB : bodyA;
+            if (other) {
+              const vec = physics.subtractVec2(other.center, body.center);
+              other.velocity = physics.addVec2(other.velocity, physics.scaleVec2(physics.normalize(vec), 300));
+            }
+          }
+          body.data.deflate = Rune.gameTime() + 1000;
+        }
+      }
+    }
     if (firstSet.length > 0 || secondSet.length > 0) {
-      const maxDepth = Math.max(...firstSet.map(c => c.depth),...secondSet.map(c => c.depth));
+      const maxDepth = Math.max(...firstSet.map(c => c.depth), ...secondSet.map(c => c.depth));
       actionListener.collision(maxDepth);
     }
+
+    for (const body of physics.enabledBodies(world)) {
+      if (body.data) {
+        if (body.data.deflate && body.data.deflate < Rune.gameTime()) {
+          delete body.data.deflate;
+          body.bounds = body.data.originalBounds;
+        }
+      }
+    }
   }
+
+  // for (const body of physics.enabledBodies(world)) {
+  //   if (body.data) {
+  //     if (body.data.adx) {
+  //       const angle = ((Math.PI / 180) * body.data.adx) * game.frameCount * 2;
+  //       physics.setRotation(body, angle);
+  //     }
+  //   }
+  // }
 
   return executed;
 }
@@ -377,7 +450,8 @@ Rune.initLogic({
       nextTurnAt: 0,
       nextCourseAt: 0,
       gameOver: false,
-      startGame: true
+      startGame: true,
+      frameCount: 0
     }
 
     for (const player of allPlayerIds) {
@@ -401,15 +475,16 @@ Rune.initLogic({
   updatesPerSecond: 30,
   update: (context) => {
     context.game.startGame = false;
+    context.game.frameCount++;
 
     const listener: ActionListener = {
-      shot: () => { 
+      shot: () => {
         // do nothing 
       },
-      hole: () => { 
+      hole: () => {
         // do nothing 
       },
-      collision: () => { 
+      collision: () => {
         // do nothing 
       }
     }

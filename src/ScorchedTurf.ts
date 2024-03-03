@@ -163,6 +163,14 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 rect: graphics.loadTileSet(ASSETS["water.png"], 45, 15),
                 circle: graphics.loadImage(ASSETS["stone3-round.png"])
             },
+            [MaterialType.BOUNCER]: {
+                rect: graphics.loadTileSet(ASSETS["bouncer.png"], 45, 15),
+                circle: graphics.loadImage(ASSETS["bouncer-round.png"])
+            },
+            [MaterialType.BLOCK]: {
+                rect: graphics.loadTileSet(ASSETS["block.png"], 45, 15),
+                circle: graphics.loadImage(ASSETS["block-round.png"])
+            },
         }
     }
 
@@ -208,7 +216,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             this.whoseTurn = update.game.whoseTurn;
             this.showSpinner = true;
         }
-        
+
         // if theres only one player left, always show the the spinner
         if (Object.keys(this.players).filter(id => !this.game?.completed.includes(id)).length === 1) {
             if (!this.game.completed.includes(this.whoseTurn)) {
@@ -572,7 +580,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         graphics.scale(0.07, 0.07);
         const bounds = physics.getWorldBounds(this.currentWorld, true);
         const boundsWidth = bounds.max.x - bounds.min.x;
-        graphics.translate(-boundsWidth/2, 0);
+        graphics.translate(-boundsWidth / 2, 0);
         this.drawBackground(this.game, this.localWorld ?? this.game.course.world);
         this.drawWorld(this.game, this.currentWorld, true);
         const flagWidth = 80;
@@ -714,7 +722,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                             graphics.drawImage(image, Math.floor(-image.width / 2), -image.height);
                         }
                     }
-                } 
+                }
                 graphics.pop();
             }
             for (const body of all) {
@@ -762,9 +770,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                             }
                             graphics.drawImage(this.playerBalls[type], -size, -size, size * 2, size * 2);
                         } else {
-                            const image = this.materials[body.data?.type as MaterialType]?.circle;
-                            if (image) {
-                                graphics.drawImage(image, -size, -size, size * 2, size * 2);
+                            if (size > 1) {
+                                const image = this.materials[body.data?.type as MaterialType]?.circle;
+                                if (image) {
+                                    graphics.drawImage(image, -size, -size, size * 2, size * 2);
+                                }
                             }
                         }
                     }
@@ -776,7 +786,12 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     const width = body.width + 2;
                     const height = body.height + 2;
                     const tileset = this.materials[body.data.type as MaterialType].rect;
-                    this.threePatch(tileset, -width / 2, -height / 2, width, height + 10); // account for shadow
+                    this.threePatch(tileset, -width / 2, -height / 2, width, height + 3); // account for shadow
+
+                    if (body.data.pinned) {
+                        const size = 4;
+                        graphics.drawImage(this.whiteCircle, -size, -size, size * 2, size * 2, "black");
+                    }
                 }
 
                 graphics.pop();
