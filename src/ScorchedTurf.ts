@@ -228,8 +228,10 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 const body = this.course.world.dynamicBodies.find(b => b.data?.playerId === event.playerId);
                 if (body) {
                     this.shot();
-                    body.data.initialX = body.center.x;
-                    body.data.initialY = body.center.y;
+                    for (const b of this.course.world.dynamicBodies) {
+                        b.data.initialX = b.center.x;
+                        b.data.initialY = b.center.y;
+                    }
                     this.applyShoot(this.course.world, body.id, event.dx, event.dy, event.power);
                     this.startPhysics = Date.now();
                 }
@@ -243,6 +245,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     this.completed = [];
                     this.gameOver = false;
                     this.courseNumber = event.courseNumber;
+                    this.showSpinner = true;
                 }
             }
             if (event.type === "gameOver") {
@@ -750,7 +753,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             graphics.fillRect(0, 60, graphics.width(), 50, "rgba(0,0,0,0.5)");
             graphics.centerText("Out of Bounds!", 100, this.fontBigger);
         }
-        if ((this.courseComplete || this.gameOver) && this.game && this.players) {
+        if ((this.gameOver || this.courseComplete) && this.game && this.players) {
             let y = 100;
             graphics.fillRect(0, y - 40, graphics.width(), 50, "rgba(0,0,0,0.5)");
             graphics.centerText(this.gameOver ? "Game Over!" : "All Done!", y, this.fontBigger);
@@ -769,7 +772,19 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 graphics.fillRect(0, y - 25, graphics.width(), 30, "rgba(0,0,0,0.5)");
                 graphics.drawImage(this.playerBalls[type], 4, 2 + y - size * 2, size * 2, size * 2);
                 graphics.drawText(35, y, name, this.fontBig);
-                graphics.drawText(graphics.width() - 10 - graphics.textWidth("" + score, this.fontBig), y, "" + score, this.fontBig);
+                graphics.drawText(graphics.width() - 55 - graphics.textWidth("" + score, this.fontBig), y, "" + score, this.fontBig);
+                const difference = (score - this.game.totalPar);
+                const diffString = "(" + ((difference >= 0) ? "+" : "") + difference + ")";
+                let col = "#aaaaaa";
+                if (difference > 0) {
+                    col = "#bb2905";
+                } 
+                if (difference < 0) {
+                    col = "#7da004";
+                }
+
+                graphics.fillRect(graphics.width() - 45, y - 22, 42, 25, col);
+                graphics.drawText(graphics.width() - 44 + (Math.floor((42 - graphics.textWidth(diffString, this.fontSmall)) / 2)), y - 4,diffString, this.fontSmall);
                 y += 35;
             }
         }

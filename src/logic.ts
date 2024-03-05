@@ -7,6 +7,7 @@ export const maxPower = 200;
 export const goalSize = 30;
 
 export const courses = [
+  "course2.svg",
   "course1.svg",
 ];
 
@@ -243,6 +244,7 @@ export interface GameState {
   gameOver: boolean;
   startGame: boolean;
   frameCount: number;
+  totalPar: number;
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -330,6 +332,8 @@ function loadNextCourse(game: GameState): void {
 }
 
 function startCourse(game: GameState, course: Course): void {
+  game.totalPar += course.par;
+  
   game.events.push({
     id: game.nextId++,
     type: "newCourse",
@@ -350,7 +354,7 @@ Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 4,
   setup: (allPlayerIds: PlayerId[]): GameState => {
-    const course = loadCourse("course1.svg");
+    const course = loadCourse(courses[0]);
     const initialState: GameState = {
       gameTime: 0,
       players: [],
@@ -364,7 +368,8 @@ Rune.initLogic({
       nextCourseAt: 0,
       gameOver: false,
       startGame: true,
-      frameCount: 0
+      frameCount: 0,
+      totalPar: 0
     }
 
     for (const player of allPlayerIds) {

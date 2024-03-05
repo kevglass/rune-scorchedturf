@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
-<svg width="2000" height="1000" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
+<svg width="2000" height="1000" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:se="http://svg-edit.googlecode.com">
  <title>course1</title>
  <g class="layer">
   <title>Easy As Pie, 5</title>
+  <ellipse cx="520" cy="400" fill="#00ffff" id="svg_79" rx="10" ry="10" stroke="#000000" transform="matrix(1 0 0 1 0 0)"/>
+  <polyline fill="none" id="conn_svg_80" points="520 410 520 430 520 450" se:connector="svg_79 svg_76" stroke="#000000" stroke-width="5"/>
   <ellipse class="grass1" cx="650" cy="670" fill="#000000" id="svg_5" rx="20" ry="20" stroke="#000" transform="matrix(1 0 0 1 0 0)"/>
   <ellipse class="tree1" cx="470" cy="670" fill="#000000" id="svg_3" rx="20" ry="20" stroke="#000" transform="matrix(1 0 0 1 0 0)"/>
   <rect fill="#487d8f" height="30" id="svg_34" stroke="#000" width="270" x="780" y="670"/>
@@ -44,5 +46,7 @@
   <rect fill="#a5e306" height="30" id="svg_27" stroke="#000" width="80" x="1820" y="160"/>
   <rect fill="#a8cbcc" height="40" id="svg_29" stroke="#000" transform="matrix(1 0 0 1 0 0)" width="60" x="150" y="460"/>
   <rect fill="#a5e306" height="30" id="svg_25" stroke="#000" transform="matrix(1 0 0 1 0 0)" width="80" x="140" y="450"/>
+  <rect class="spin" fill="#0000ff" height="20" id="svg_37" stroke="#000" width="130" x="860" y="470"/>
+  <ellipse class="dynamic" cx="520" cy="470" fill="#ff00ff" id="svg_76" rx="20" ry="20" stroke="#000"/>
  </g>
 </svg>
