@@ -1,7 +1,8 @@
-import { graphics, physics, sound } from "togl";
+import { graphics, physics, sound, translate } from "togl";
 import { ballSize, GameState, GameUpdate, MaterialType, maxPower, goalSize, ActionListener, Course } from "./logic";
 import { ASSETS } from "./lib/assets";
 import { PlayerId, Players } from "rune-games-sdk";
+import { translations } from "./translates";
 
 const nthStrings = [
     "th",
@@ -24,6 +25,8 @@ interface Sink {
     playerId: string;
     time: number;
 }
+
+translate.init(translations);
 
 export class ScorchedTurf implements graphics.Game, ActionListener {
     game?: GameState;
@@ -117,8 +120,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         this.sfxHole = sound.loadSound(ASSETS["hole.mp3"]);
 
         this.fontSmall = graphics.generateFont(16, "white");
-        this.fontBig = graphics.generateFont(24, "white");
-        this.fontBigger = graphics.generateFont(40, "white");
+        this.fontBig = graphics.generateFont(20, "white");
+        this.fontBigger = graphics.generateFont(28, "white");
         this.arrow = graphics.loadImage(ASSETS["arrow.png"], true, "arrow", true);
         this.logo = graphics.loadImage(ASSETS["logo.png"]);
         this.whiteCircle = graphics.loadImage(ASSETS["whitecircle.png"]);
@@ -193,7 +196,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         this.zoom += delta * 0.01;
         this.zoom = Math.min(1, Math.max(0.5, this.zoom));
     }
-    
+
     shot(): void {
         sound.playSound(this.sfxSwish);
     }
@@ -567,7 +570,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         if (this.atStart) {
             graphics.drawImage(this.logo, Math.floor((graphics.width() - (1.05 * this.logo.width)) / 2), 50);
             graphics.fillRect(0, graphics.height() - 65, graphics.width(), 40, "rgba(0,0,0,0.5)");
-            graphics.centerText("Tap/Click to Start", graphics.height() - 36, this.fontBig);
+            graphics.centerText("Tap to Start", graphics.height() - 36, this.fontBig);
         }
         // run the world from the server
         if (this.game && this.course) {
