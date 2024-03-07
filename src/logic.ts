@@ -7,8 +7,11 @@ export const maxPower = 200;
 export const goalSize = 30;
 
 export const courses = [
-  "course2.svg",
   "course1.svg",
+  "course2.svg",
+  "course3.svg",
+  "course5.svg",
+  "course4.svg",
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -287,7 +290,7 @@ function nextTurn(state: GameState): void {
       state.gameOver = true;
       Rune.gameOver();
     } else {
-      state.nextCourseAt = Rune.gameTime() + 8000;
+      state.nextCourseAt = Rune.gameTime() + 4000;
     }
     return;
   }
@@ -333,7 +336,7 @@ function loadNextCourse(game: GameState): void {
 
 function startCourse(game: GameState, course: Course): void {
   game.totalPar += course.par;
-  
+
   game.events.push({
     id: game.nextId++,
     type: "newCourse",

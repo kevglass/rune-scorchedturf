@@ -107,6 +107,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     executionCounter = -1;
     startPhysics = 0;
 
+    zoom = 1;
+
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 2048, 10);
 
@@ -187,6 +189,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         }
     }
 
+    zoomChanged(delta: number): void {
+        this.zoom += delta * 0.01;
+        this.zoom = Math.min(1, Math.max(0.5, this.zoom));
+    }
+    
     shot(): void {
         sound.playSound(this.sfxSwish);
     }
@@ -298,7 +305,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     const maxDepth = Math.max(...firstSet.map(c => c.depth), ...secondSet.map(c => c.depth));
                     this.collision(maxDepth);
                 }
-
+        
+                let ballMoving = false;
                 for (const body of physics.enabledBodies(this.course.world)) {
                     if (body.data) {
                         if (body.data.deflate && body.data.deflate < Rune.gameTime()) {
@@ -306,16 +314,18 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                             body.bounds = body.data.originalBounds;
                         }
                     }
+
+                    // theres a ball still moving
+                    if (body.data.playerId && body.restingTime < 1) {
+                        ballMoving = true;
+                    }
                 }
 
-            // for (const body of physics.enabledBodies(world)) {
-            //   if (body.data) {
-            //     if (body.data.adx) {
-            //       const angle = ((Math.PI / 180) * body.data.adx) * game.frameCount * 2;
-            //       physics.setRotation(body, angle);
-            //     }
-            //   }
-            // }
+                if (!ballMoving) {
+                    for (let i=0;i<5;i++) {
+                        physics.worldStep(30, this.course.world);
+                    }
+                }
 
                 for (const body of [...this.course.world.dynamicBodies]) {
                     const distanceToGoal = physics.lengthVec2(physics.subtractVec2(this.course.goal, body.center));
@@ -564,11 +574,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             if (graphics.width() > graphics.height()) {
                 this.heightInUnits = 500;
                 this.widthInUnits = ((graphics.height() / graphics.width()) * this.heightInUnits);
-                this.scale = (1 / this.heightInUnits) * graphics.height();
+                this.scale = (1 / this.heightInUnits) * graphics.height() * this.zoom;
             } else {
                 this.widthInUnits = 500;
                 this.heightInUnits = ((graphics.height() / graphics.width()) * this.widthInUnits);
-                this.scale = (1 / this.widthInUnits) * graphics.width();
+                this.scale = (1 / this.widthInUnits) * graphics.width() * this.zoom;
             }
 
             graphics.push();
