@@ -385,6 +385,9 @@ Rune.initLogic({
     return initialState;
   },
   events: {
+    playerJoined: () => {
+      // spectator mode
+    },
     playerLeft: (playerId: PlayerId, context) => {
       // do nothing
       if (context.game.whoseTurn === playerId) {
