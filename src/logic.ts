@@ -235,6 +235,7 @@ export interface ActionListener {
 export interface GameState {
   gameTime: number;
   players: PlayerDetails[];
+  joinedPlayers: string[];
   whoseTurn?: PlayerId;
   nextTurnAt: number;
   nextCourseAt: number;
@@ -248,6 +249,13 @@ export interface GameState {
   startGame: boolean;
   frameCount: number;
   totalPar: number;
+  courseStart: boolean;
+  clearCourseStart: number;
+
+  powerDragging: boolean;
+  px: number;
+  py: number;
+  power: number;
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -266,6 +274,7 @@ export type GameUpdate = {
 type GameActions = {
   shoot: (params: { dx: number, dy: number, power: number }) => void;
   reachedGoal: (params: { playerId: string, courseId: number }) => void;
+  dragUpdate: (params: { powerDragging: boolean, px: number, py: number, power: number }) => void;
   endTurn: () => void;
 }
 
@@ -306,7 +315,7 @@ function nextTurn(state: GameState): void {
   state.whoseTurn = state.players[current].playerId;
 }
 
-function addPlayer(world: physics.World, state: GameState, id: PlayerId): void {
+function addPlayer(state: GameState, id: PlayerId): void {
   let playerType = 0;
   for (playerType = 0; playerType < 6; playerType++) {
     if (!state.players.find(p => p.playerType === playerType)) {
@@ -321,12 +330,13 @@ function addPlayer(world: physics.World, state: GameState, id: PlayerId): void {
     playerId: id,
     playerType,
     shots: 0,
-    totalShots: 0
+    totalShots: Math.max(...state.players.map(p => p.totalShots), 0)
   });
 }
 
 function removePlayer(state: GameState, id: PlayerId): void {
   state.players = state.players.filter(p => p.playerId !== id);
+  state.joinedPlayers = state.joinedPlayers.filter(p => p !== id);
 }
 
 function loadNextCourse(game: GameState): void {
@@ -346,6 +356,13 @@ function startCourse(game: GameState, course: Course): void {
   } as NewCourseEvent);
   game.completed = [];
 
+
+  for (const player of game.joinedPlayers) {
+    if (!game.players.find(p => p.playerId === player)) {
+      addPlayer(game, player);
+    }
+  }
+
   for (const player of game.players) {
     player.shots = 0;
   }
@@ -355,12 +372,13 @@ function startCourse(game: GameState, course: Course): void {
 
 Rune.initLogic({
   minPlayers: 1,
-  maxPlayers: 4,
+  maxPlayers: 6,
   setup: (allPlayerIds: PlayerId[]): GameState => {
     const course = loadCourse(courses[0]);
     const initialState: GameState = {
       gameTime: 0,
       players: [],
+      joinedPlayers: [],
       events: [],
       executed: 0,
       nextId: 1,
@@ -372,11 +390,18 @@ Rune.initLogic({
       gameOver: false,
       startGame: true,
       frameCount: 0,
-      totalPar: 0
+      totalPar: 0,
+
+      powerDragging: false,
+      px: 0,
+      py: 0,
+      power: 0,
+      courseStart: true,
+      clearCourseStart: Rune.gameTime() + 500,
     }
 
     for (const player of allPlayerIds) {
-      addPlayer(course.world, initialState, player);
+      addPlayer(initialState, player);
     }
 
     nextTurn(initialState);
@@ -385,8 +410,10 @@ Rune.initLogic({
     return initialState;
   },
   events: {
-    playerJoined: () => {
-      // spectator mode
+    playerJoined: (playerId: PlayerId, context) => {
+      if (playerId) {
+        context.game.joinedPlayers.push(playerId);
+      }
     },
     playerLeft: (playerId: PlayerId, context) => {
       // do nothing
@@ -402,6 +429,10 @@ Rune.initLogic({
     context.game.frameCount++;
     context.game.gameTime = Rune.gameTime();
 
+    if (context.game.clearCourseStart < Rune.gameTime()) {
+      context.game.courseStart = false
+    }
+
     if (context.game.nextTurnAt !== 0 && Rune.gameTime() > context.game.nextTurnAt) {
       nextTurn(context.game);
       context.game.nextTurnAt = 0;
@@ -411,10 +442,18 @@ Rune.initLogic({
 
     if (context.game.nextCourseAt !== 0 && Rune.gameTime() > context.game.nextCourseAt) {
       context.game.nextCourseAt = 0;
+      context.game.courseStart = true;
+      context.game.clearCourseStart = Rune.gameTime() + 500,
       loadNextCourse(context.game);
     }
   },
   actions: {
+    dragUpdate: (params: { powerDragging: boolean, px: number, py: number, power: number }, context) => {
+      context.game.powerDragging = params.powerDragging;
+      context.game.px = params.px;
+      context.game.py = params.py;
+      context.game.power = params.power;
+    },
     reachedGoal: (params: { playerId: string, courseId: number }, context) => {
       if (params.courseId === context.game.courseNumber) {
         context.game.completed.push(params.playerId);

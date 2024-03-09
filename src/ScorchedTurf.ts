@@ -47,6 +47,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     logo!: graphics.GameImage;
     whiteCircle!: graphics.GameImage;
     spinRing!: graphics.GameImage;
+    hand!: graphics.GameImage;
     flag!: graphics.TileSet;
     assetsLoaded = false;
     cam: physics.Vector2 = physics.newVec2(0, 0);
@@ -111,6 +112,9 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     startPhysics = 0;
 
     zoom = 1;
+    lastDragUpdate = 0;
+    hasCourseMessage = false
+    firstDrag = true;
 
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 2048, 10);
@@ -126,6 +130,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         this.logo = graphics.loadImage(ASSETS["logo.png"]);
         this.whiteCircle = graphics.loadImage(ASSETS["whitecircle.png"]);
         this.spinRing = graphics.loadImage(ASSETS["spinring.png"]);
+        this.hand = graphics.loadImage(ASSETS["tap.png"]);
         this.chain = graphics.loadImage(ASSETS["chain.png"]);
         
 
@@ -216,7 +221,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     }
 
     get courseComplete(): boolean {
-        return (this.game && this.players && Object.values(this.players).length <= this.completed.length) ? true : false;
+        return (this.game && this.players && !this.world?.dynamicBodies.find(b => b.data.playerId)) ? true : false;
     }
 
     start(): void {
@@ -360,7 +365,14 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         }
     }
 
-    firstShoot = true;
+    sendDragUpdate(): void {
+        if (this.lastDragUpdate < Date.now() - 200) {
+            this.lastDragUpdate = Date.now();
+            setTimeout(() => {
+                Rune.actions.dragUpdate({ powerDragging: this.powerDragging, px: this.px, py: this.py, power: this.power });
+            }, 1);
+        }
+    }
 
     // notification of a new game state from the Rune SDK
     gameUpdate(update: GameUpdate): void {
@@ -371,15 +383,28 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         if (this.game.startGame) {
             this.gameOver = false;
             this.executionCounter = 0;
+            this.hasCourseMessage = true;
         }
 
+        if (this.game.courseStart && !this.hasCourseMessage) {
+            this.hasCourseMessage = true;
+            this.atStart = false;
+        }
         if (update.game.whoseTurn && update.game.whoseTurn !== this.whoseTurn) {
             this.whoseTurn = update.game.whoseTurn;
             this.showSpinner = true;
         }
 
+        if (update.game.whoseTurn === this.localPlayerId) {
+            this.sendDragUpdate();
+        } else {
+            this.powerDragging = update.game.powerDragging;
+            this.px = update.game.px;
+            this.py = update.game.py;
+            this.power = update.game.power;
+        }
         // if theres only one player left, always show the the spinner
-        if (Object.keys(this.players).filter(id => !this.game?.completed.includes(id)).length === 1) {
+        if (this.course && this.course.world.dynamicBodies.filter(b => b.data.playerId).map(b => b.data.playerId).filter(id => !this.game?.completed.includes(id)).length === 1) {
             if (!this.game.completed.includes(this.whoseTurn)) {
                 this.showSpinner = true;
             }
@@ -392,6 +417,17 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             if (!physics.atRest(this.world)) {
                 this.dragOffsetX = 0;
                 this.dragOffsetY = 0;
+            } else {
+                // if the world is at rest remove any bodies that should be 
+                // there because players left
+                for (const body of this.world.dynamicBodies.filter(b => b.data.playerId)) {
+                    const expectedId = body.data.playerId;
+                    if (!this.players[expectedId] || this.players[expectedId].displayName === "Player Left") {
+                        // player has left the game
+                        const index = this.world.dynamicBodies.indexOf(body);
+                        this.world.dynamicBodies.splice(index, 1);
+                    }
+                }
             }
             if (physics.atRest(this.world) && Rune.gameTime() > this.changeTurnAt && this.changeTurnAt !== 0) {
                 if (update.game.whoseTurn === this.localPlayerId) {
@@ -423,8 +459,10 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             return;
         }
         if (this.atStart) {
-            this.atStart = false;
-            this.showTitleTimer = Date.now();
+            if (this.hasCourseMessage) {
+                this.atStart = false;
+                this.showTitleTimer = Date.now();
+            }
             return;
         }
         if (this.showTitle) {
@@ -443,10 +481,12 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             return;
         }
 
+        x -= Math.floor((this.widthInUnits / 2));
+        y -= Math.floor((this.heightInUnits / 2));
         x /= this.scale;
         y /= this.scale;
-        x += Math.floor(this.cameraX - (this.widthInUnits / 2));
-        y += Math.floor(this.cameraY - (this.heightInUnits / 2));
+        x += Math.floor(this.cameraX);
+        y += Math.floor(this.cameraY);
 
         this.sx = x;
         this.sy = y;
@@ -475,10 +515,12 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     }
 
     mouseDrag(x: number, y: number): void {
+        x -= Math.floor((this.widthInUnits / 2));
+        y -= Math.floor((this.heightInUnits / 2));
         x /= this.scale;
         y /= this.scale;
-        x += Math.floor(this.cameraX - (this.widthInUnits / 2));
-        y += Math.floor(this.cameraY - (this.heightInUnits / 2));
+        x += Math.floor(this.cameraX);
+        y += Math.floor(this.cameraY);
 
         if (this.game && this.currentWorld && physics.atRest(this.currentWorld)) {
             if (this.powerDragging) {
@@ -509,6 +551,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         if (this.powerDragging) {
             if (this.power > 30) {
                 this.showSpinner = false;
+                this.firstDrag = false;
                 Rune.actions.shoot({ dx: -this.px / this.power, dy: -this.py / this.power, power: 150 + (this.power * 2) });
                 this.changeTurnAt = Rune.gameTime() + 1000;
             }
@@ -570,7 +613,12 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         if (this.atStart) {
             graphics.drawImage(this.logo, Math.floor((graphics.width() - (1.05 * this.logo.width)) / 2), 50);
             graphics.fillRect(0, graphics.height() - 65, graphics.width(), 40, "rgba(0,0,0,0.5)");
-            graphics.centerText("Tap to Start", graphics.height() - 36, this.fontBig);
+
+            if (this.hasCourseMessage) {
+                graphics.centerText("Tap to Start", graphics.height() - 36, this.fontBig);
+            } else {
+                graphics.centerText("Waiting for Next Course", graphics.height() - 36, this.fontBig);
+            }
         }
         // run the world from the server
         if (this.game && this.course) {
@@ -597,7 +645,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 this.vy = this.currentBody.averageCenter.y;
             }
 
-            if (physics.atRest(this.currentWorld)) {
+            const atRest = physics.atRest(this.currentWorld);
+            if (atRest) {
                 this.cameraX = (this.cameraX * 0.7) + (this.vx * 0.3);
                 this.cameraY = (this.cameraY * 0.7) + (this.vy * 0.3);
             } else {
@@ -611,8 +660,9 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 return;
             }
 
+            graphics.translate(Math.floor(this.widthInUnits / 2), Math.floor(this.heightInUnits / 2));
             graphics.scale(this.scale, this.scale);
-            graphics.translate(Math.floor(-this.cameraX + (this.widthInUnits / 2)), Math.floor(-this.cameraY + (this.heightInUnits / 2)));
+            graphics.translate(Math.floor(-this.cameraX), Math.floor(-this.cameraY));
 
             // draw goal area
             graphics.alpha(0.2);
@@ -651,9 +701,34 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             const flagHeight = 80;
             graphics.drawTile(this.flag, this.course.goal.x - 6, this.course.goal.y - flagHeight, 0, flagWidth, flagHeight);
 
-            if (this.powerDragging && this.power > 30) {
+            if (this.powerDragging && this.power > 30 && atRest) {
                 const body = this.currentWorld.dynamicBodies.find(b => b.data.playerId === this.game?.whoseTurn);
                 if (body) {
+                    if (body.data.playerId !== this.localPlayerId) {
+                        graphics.alpha(0.5);
+                    } else {
+                        // draw trajectory
+                        if (this.power > 50) {
+                            const len = Math.sqrt((this.px * this.px) + (this.py * this.py));
+                            graphics.push();
+                            graphics.translate(body.averageCenter.x, body.averageCenter.y);
+                            let x = 0;
+                            let y = 0;
+                            let vy = (-this.py / len) * this.power;
+                            const step = 0.5;
+
+                            for (let i=0;i<15;i++) {
+                                x += ((-this.px / len) * this.power) * step;
+                                y += vy * step;
+                                vy += (200 / 10) * step;
+                                graphics.alpha(0.2);
+                                graphics.drawImage(this.whiteCircle, x-6, y-6, 12, 12, "rgba(0,0,0,0.2)");
+                                graphics.alpha(1);
+                                graphics.drawImage(this.whiteCircle, x-4, y-4, 8, 8);
+                            }
+                            graphics.pop();
+                        }
+                    }
                     graphics.push();
                     graphics.translate(body.averageCenter.x, body.averageCenter.y);
                     graphics.rotate(Math.atan2(-this.py, -this.px));
@@ -667,16 +742,23 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                         g: Math.floor((this.gradient[p].g * (1 - diff)) + (this.gradient[p + 1].g * diff)),
                         b: Math.floor((this.gradient[p].b * (1 - diff)) + (this.gradient[p + 1].b * diff)),
                     }
-                    graphics.drawImage(this.arrow, 20 * (1 / scale), (-this.arrow.height / 2), this.arrow.width, this.arrow.height, "rgb(" + col.r + "," + col.g + "," + col.b + ")");
+                    graphics.drawImage(this.arrow, 20 * (1 / scale), (-this.arrow.height / 2), this.arrow.width, this.arrow.height, "rgba(" + col.r + "," + col.g + "," + col.b + ", 0)");
                     graphics.pop();
+                    graphics.alpha(1);
                 }
             } else {
-                if (this.showSpinner && physics.atRest(this.currentWorld) && this.currentBody && this.currentBody.data.playerId === this.localPlayerId) {
+                if (this.showSpinner && this.game.nextTurnAt === 0 &&  physics.atRest(this.currentWorld) && this.currentBody && this.currentBody.data.playerId === this.localPlayerId) {
                     const size = 30;
                     graphics.push();
                     graphics.translate(this.currentBody.averageCenter.x, this.currentBody.averageCenter.y);
+                    graphics.push();
                     graphics.rotate(this.frame * 0.1);
                     graphics.drawImage(this.spinRing, -size, -size, size * 2, size * 2);
+
+                    graphics.pop();
+                    if (this.firstDrag) {
+                        graphics.drawImage(this.hand, (1 - Math.sin((this.frame * 0.02) % Math.PI)) * -50, (1 - Math.sin((this.frame * 0.02) % Math.PI)) * 30);
+                    }
                     graphics.pop();
                 }
             }
@@ -694,8 +776,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         graphics.translate(Math.floor(graphics.width() / 2), 0);
         graphics.scale(0.07, 0.07);
         const bounds = physics.getWorldBounds(this.currentWorld, true);
-        const boundsWidth = bounds.max.x - bounds.min.x;
-        graphics.translate(-boundsWidth / 2, 0);
+        const boundsWidth = bounds.max.x - bounds.min.x
+        const boundsHeight = bounds.max.y - bounds.min.y;
+        graphics.translate(-boundsWidth / 2, 40);
+        graphics.fillRect(-40, 0, boundsWidth + 80, boundsHeight + 80, "rgba(0,0,0,0.1)")
+        graphics.translate(-bounds.min.x, -bounds.min.y);
         this.drawBackground(this.game, this.world ?? this.course.world);
         this.drawWorld(this.game, this.currentWorld, true);
         const flagWidth = 80;
