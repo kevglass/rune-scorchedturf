@@ -660,7 +660,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 return;
             }
 
-            graphics.translate(Math.floor(this.widthInUnits / 2), Math.floor(this.heightInUnits / 2));
+            graphics.translate(Math.floor(graphics.width() / 2), Math.floor(graphics.height() / 2));
             graphics.scale(this.scale, this.scale);
             graphics.translate(Math.floor(-this.cameraX), Math.floor(-this.cameraY));
 
