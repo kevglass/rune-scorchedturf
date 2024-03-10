@@ -397,7 +397,7 @@ Rune.initLogic({
       py: 0,
       power: 0,
       courseStart: true,
-      clearCourseStart: Rune.gameTime() + 500,
+      clearCourseStart: Rune.gameTime() + 3000,
     }
 
     for (const player of allPlayerIds) {
@@ -414,6 +414,7 @@ Rune.initLogic({
       if (playerId) {
         context.game.joinedPlayers.push(playerId);
       }
+      context.game.courseStart = false;
     },
     playerLeft: (playerId: PlayerId, context) => {
       // do nothing
@@ -443,7 +444,7 @@ Rune.initLogic({
     if (context.game.nextCourseAt !== 0 && Rune.gameTime() > context.game.nextCourseAt) {
       context.game.nextCourseAt = 0;
       context.game.courseStart = true;
-      context.game.clearCourseStart = Rune.gameTime() + 500,
+      context.game.clearCourseStart = Rune.gameTime() + 3000,
       loadNextCourse(context.game);
     }
   },
