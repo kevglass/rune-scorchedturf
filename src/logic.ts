@@ -397,7 +397,7 @@ Rune.initLogic({
       py: 0,
       power: 0,
       courseStart: true,
-      clearCourseStart: Rune.gameTime() + 3000,
+      clearCourseStart: Rune.gameTime() + 5000,
     }
 
     for (const player of allPlayerIds) {
@@ -444,7 +444,7 @@ Rune.initLogic({
     if (context.game.nextCourseAt !== 0 && Rune.gameTime() > context.game.nextCourseAt) {
       context.game.nextCourseAt = 0;
       context.game.courseStart = true;
-      context.game.clearCourseStart = Rune.gameTime() + 3000,
+      context.game.clearCourseStart = Rune.gameTime() + 5000,
       loadNextCourse(context.game);
     }
   },
