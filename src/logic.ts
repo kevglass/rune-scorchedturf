@@ -256,6 +256,8 @@ export interface GameState {
   px: number;
   py: number;
   power: number;
+
+  // course: Course;
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -344,6 +346,8 @@ function loadNextCourse(game: GameState): void {
   startCourse(game, loadCourse(courses[game.courseNumber]));
 }
 
+// let totalTime = 0;
+
 function startCourse(game: GameState, course: Course): void {
   game.totalPar += course.par;
 
@@ -398,11 +402,21 @@ Rune.initLogic({
       power: 0,
       courseStart: true,
       clearCourseStart: Rune.gameTime() + 5000,
+
+      // course
     }
 
     for (const player of allPlayerIds) {
       addPlayer(initialState, player);
     }
+
+    // for (const player of initialState.players) {
+    //   const ball = physics.createCircle(course.world, physics.newVec2(course.start.x + (initialState.players.indexOf(player) * 1), course.start.y), ballSize, 10, 1, 1);
+    //   ball.data = { playerId: player.playerId };
+    //   physics.addBody(course.world, ball);
+    //   ball.velocity.x = 500;
+    //   ball.velocity.y = -300;
+    // }
 
     nextTurn(initialState);
     startCourse(initialState, course);
@@ -429,6 +443,20 @@ Rune.initLogic({
     context.game.startGame = false;
     context.game.frameCount++;
     context.game.gameTime = Rune.gameTime();
+
+    // 1484.0000032782555 (per frame= 5.936000013113022)
+    // if (context.game.frameCount < 250) {
+    //   const before = performance.now();
+    //   // physics.worldStep(15, context.game.course.world);
+    //   // physics.worldStep(15, context.game.course.world);
+    //   const after = performance.now();
+    //   // eslint-disable-next-line rune/no-global-scope-mutation
+    //   totalTime += (after - before);
+    // }
+
+    if (context.game.frameCount === 250) {
+      // console.log(totalTime + " (per frame= " + (totalTime / context.game.frameCount) +")");
+    }
 
     if (context.game.clearCourseStart < Rune.gameTime()) {
       context.game.courseStart = false

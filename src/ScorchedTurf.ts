@@ -481,8 +481,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             return;
         }
 
-        x -= Math.floor((this.widthInUnits / 2));
-        y -= Math.floor((this.heightInUnits / 2));
+        x -= Math.floor((graphics.width() / 2));
+        y -= Math.floor((graphics.height() / 2));
         x /= this.scale;
         y /= this.scale;
         x += Math.floor(this.cameraX);
@@ -515,8 +515,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     }
 
     mouseDrag(x: number, y: number): void {
-        x -= Math.floor((this.widthInUnits / 2));
-        y -= Math.floor((this.heightInUnits / 2));
+        x -= Math.floor((graphics.width() / 2));
+        y -= Math.floor((graphics.height() / 2));
         x /= this.scale;
         y /= this.scale;
         x += Math.floor(this.cameraX);
