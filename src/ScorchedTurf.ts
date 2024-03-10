@@ -711,7 +711,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                         if (this.power > 50) {
                             const len = Math.sqrt((this.px * this.px) + (this.py * this.py));
                             graphics.push();
-                            graphics.translate(body.averageCenter.x, body.averageCenter.y);
+                            graphics.translate(body.center.x, body.center.y);
                             let x = 0;
                             let y = 0;
                             let vy = (-this.py / len) * this.power;
@@ -730,7 +730,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                         }
                     }
                     graphics.push();
-                    graphics.translate(body.averageCenter.x, body.averageCenter.y);
+                    graphics.translate(body.center.x, body.center.y);
                     graphics.rotate(Math.atan2(-this.py, -this.px));
                     const scale = 0.5 + (0.5 * this.power / maxPower);
                     graphics.scale(scale, scale);
@@ -750,7 +750,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 if (this.showSpinner && this.game.nextTurnAt === 0 &&  physics.atRest(this.currentWorld) && this.currentBody && this.currentBody.data.playerId === this.localPlayerId) {
                     const size = 30;
                     graphics.push();
-                    graphics.translate(this.currentBody.averageCenter.x, this.currentBody.averageCenter.y);
+                    graphics.translate(this.currentBody.center.x, this.currentBody.center.y);
                     graphics.push();
                     graphics.rotate(this.frame * 0.1);
                     graphics.drawImage(this.spinRing, -size, -size, size * 2, size * 2);
@@ -924,8 +924,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 // ----
                 graphics.push();
 
-                graphics.translate(body.averageCenter.x, body.averageCenter.y);
-                graphics.rotate(Math.floor(body.averageAngle * 10) / 10);
+                graphics.translate(body.center.x, body.center.y);
+                graphics.rotate(Math.floor(body.angle * 10) / 10);
 
                 if (body.type === physics.ShapeType.CIRCLE) {
                     if (body.data.sprite) {
@@ -942,8 +942,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 // ----
                 graphics.push();
 
-                graphics.translate(body.averageCenter.x, body.averageCenter.y);
-                graphics.rotate(Math.floor(body.averageAngle * 10) / 10);
+                graphics.translate(body.center.x, body.center.y);
+                graphics.rotate(Math.floor(body.angle * 10) / 10);
 
                 if (body.type === physics.ShapeType.RECTANGLE) {
                     if (body.data.type === MaterialType.WATER) {
@@ -966,8 +966,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 // ----
                 graphics.push();
 
-                graphics.translate(body.averageCenter.x, body.averageCenter.y);
-                graphics.rotate(Math.floor(body.averageAngle * 10) / 10);
+                graphics.translate(body.center.x, body.center.y);
+                graphics.rotate(Math.floor(body.angle * 10) / 10);
 
                 if (body.type === physics.ShapeType.CIRCLE) {
                     if (body.data.sprite) {
