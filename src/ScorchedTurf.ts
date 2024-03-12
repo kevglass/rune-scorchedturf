@@ -300,7 +300,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                             body.bounds = body.data.originalBounds * 1.25;
                             if (!body.data?.deflate) {
                                 const other = body === bodyA ? bodyB : bodyA;
-                                if (other) {
+                                if (other && !other.static) {
                                     const vec = physics.subtractVec2(other.center, body.center);
                                     other.velocity = physics.addVec2(other.velocity, physics.scaleVec2(physics.normalize(vec), 300));
                                 }
@@ -324,7 +324,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     }
 
                     // theres a ball still moving
-                    if (body.data.playerId && body.restingTime < 1) {
+                    if (body.data.playerId && !body.static && body.restingTime < 1) {
                         ballMoving = true;
                     }
                 }
@@ -385,11 +385,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             this.executionCounter = 0;
             this.hasCourseMessage = true;
         }
-
-        if (this.game.courseStart && !this.hasCourseMessage) {
+        if (this.game.shotsThisCourse === 0) {
             this.hasCourseMessage = true;
             this.atStart = false;
         }
+
         if (update.game.whoseTurn && update.game.whoseTurn !== this.whoseTurn) {
             this.whoseTurn = update.game.whoseTurn;
             this.showSpinner = true;
@@ -640,7 +640,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 this.currentBody = body;
             }
 
-            if (this.currentBody) {
+            if (this.currentBody && !this.currentBody.static) {
                 this.vx = this.currentBody.averageCenter.x;
                 this.vy = this.currentBody.averageCenter.y;
             }
@@ -670,7 +670,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             graphics.alpha(1);
 
             this.drawBackground(this.game, this.world ?? this.course.world);
-            if (this.currentBody) {
+            if (this.currentBody && !this.currentBody.static) {
                 let tx = this.currentBody.averageCenter.x;
                 let ty = this.currentBody.averageCenter.y;
                 for (let i = 0; i < this.trail.length; i++) {

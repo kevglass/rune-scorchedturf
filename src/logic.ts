@@ -249,8 +249,7 @@ export interface GameState {
   startGame: boolean;
   frameCount: number;
   totalPar: number;
-  courseStart: boolean;
-  clearCourseStart: number;
+  shotsThisCourse: number;
 
   powerDragging: boolean;
   px: number;
@@ -350,6 +349,7 @@ function loadNextCourse(game: GameState): void {
 
 function startCourse(game: GameState, course: Course): void {
   game.totalPar += course.par;
+  game.shotsThisCourse = 0;
 
   game.events.push({
     id: game.nextId++,
@@ -400,8 +400,7 @@ Rune.initLogic({
       px: 0,
       py: 0,
       power: 0,
-      courseStart: true,
-      clearCourseStart: Rune.gameTime() + 5000,
+      shotsThisCourse: 0,
 
       // course
     }
@@ -428,7 +427,6 @@ Rune.initLogic({
       if (playerId) {
         context.game.joinedPlayers.push(playerId);
       }
-      context.game.courseStart = false;
     },
     playerLeft: (playerId: PlayerId, context) => {
       // do nothing
@@ -458,10 +456,6 @@ Rune.initLogic({
       // console.log(totalTime + " (per frame= " + (totalTime / context.game.frameCount) +")");
     }
 
-    if (context.game.clearCourseStart < Rune.gameTime()) {
-      context.game.courseStart = false
-    }
-
     if (context.game.nextTurnAt !== 0 && Rune.gameTime() > context.game.nextTurnAt) {
       nextTurn(context.game);
       context.game.nextTurnAt = 0;
@@ -471,8 +465,6 @@ Rune.initLogic({
 
     if (context.game.nextCourseAt !== 0 && Rune.gameTime() > context.game.nextCourseAt) {
       context.game.nextCourseAt = 0;
-      context.game.courseStart = true;
-      context.game.clearCourseStart = Rune.gameTime() + 5000,
       loadNextCourse(context.game);
     }
   },
@@ -493,6 +485,7 @@ Rune.initLogic({
       if (player) {
         player.shots++;
         player.totalShots++;
+        context.game.shotsThisCourse++;
 
         const event: ShootEvent = {
           id: context.game.nextId++,
