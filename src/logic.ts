@@ -242,7 +242,6 @@ export interface GameState {
   events: GameEvent[];
   executed: number;
   nextId: number;
-  nextTurnAtRest: boolean;
   courseNumber: number;
   completed: string[];
   gameOver: boolean;
@@ -386,7 +385,6 @@ Rune.initLogic({
       events: [],
       executed: 0,
       nextId: 1,
-      nextTurnAtRest: false,
       courseNumber: 0,
       completed: [],
       nextTurnAt: 0,

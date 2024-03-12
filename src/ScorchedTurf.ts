@@ -115,6 +115,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     lastDragUpdate = 0;
     hasCourseMessage = false
     firstDrag = true;
+    lastMovingSim = 0;
 
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 2048, 10);
@@ -243,10 +244,6 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 const body = this.course.world.dynamicBodies.find(b => b.data?.playerId === event.playerId);
                 if (body) {
                     this.shot();
-                    for (const b of this.course.world.dynamicBodies) {
-                        b.data.initialX = b.center.x;
-                        b.data.initialY = b.center.y;
-                    }
                     this.applyShoot(this.course.world, body.id, event.dx, event.dy, event.power);
                     this.startPhysics = Date.now();
                 }
@@ -418,6 +415,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 this.dragOffsetX = 0;
                 this.dragOffsetY = 0;
             } else {
+                for (const b of this.course.world.dynamicBodies) {
+                    b.data.initialX = b.center.x;
+                    b.data.initialY = b.center.y;
+                }
+                
                 // if the world is at rest remove any bodies that should be 
                 // there because players left
                 for (const body of this.world.dynamicBodies.filter(b => b.data.playerId)) {
@@ -493,7 +495,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
 
         if (this.currentWorld && physics.atRest(this.currentWorld)) {
             this.dragging = true;
-            if (this.game) {
+            if (this.game && this.myTurn()) {
                 const body = this.currentWorld.dynamicBodies.find(b => b.data?.playerId === this.localPlayerId);
                 if (body) {
                     if (body.data.playerId === this.game.whoseTurn && this.game.whoseTurn === this.localPlayerId) {
@@ -514,6 +516,14 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         }
     }
 
+    physicsAtRestTime(): number {
+        return Date.now() - this.lastMovingSim;
+    }
+
+    myTurn(): boolean {
+        return this.whoseTurn == this.localPlayerId && this.game?.nextTurnAt == 0 && this.physicsAtRestTime() > 500;
+    }
+    
     mouseDrag(x: number, y: number): void {
         x -= Math.floor((graphics.width() / 2));
         y -= Math.floor((graphics.height() / 2));
@@ -694,6 +704,9 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 }
             }
 
+            if (this.world && !physics.atRest(this.world)) {
+                this.lastMovingSim = Date.now();
+            }
 
             graphics.alpha(1);
             this.drawWorld(this.game, this.world ?? this.course.world);
@@ -747,7 +760,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     graphics.alpha(1);
                 }
             } else {
-                if (this.showSpinner && this.game.nextTurnAt === 0 &&  physics.atRest(this.currentWorld) && this.currentBody && this.currentBody.data.playerId === this.localPlayerId) {
+                if (this.showSpinner && this.game.nextTurnAt === 0 && this.physicsAtRestTime() > 500 && this.currentBody && this.currentBody.data.playerId === this.localPlayerId) {
                     const size = 30;
                     graphics.push();
                     graphics.translate(this.currentBody.center.x, this.currentBody.center.y);
@@ -797,7 +810,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             }
             const player = this.game.players.find(p => p.playerId === this.game?.whoseTurn);
             graphics.drawText(67, graphics.height() - 32, message, this.fontBig);
-            if (player) {
+            if (player && this.game?.nextTurnAt == 0 && this.physicsAtRestTime() > 500) {
                 message = (player.shots + 1) + nthStrings[Math.min(4, player.shots + 1)] + " shot";
                 graphics.drawText(69, graphics.height() - 14, message, this.fontSmall);
             }
