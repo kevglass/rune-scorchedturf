@@ -116,7 +116,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     hasCourseMessage = false
     firstDrag = true;
     lastMovingSim = 0;
-
+    lastShot = 0;
+    
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 2048, 10);
 
@@ -363,7 +364,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     }
 
     sendDragUpdate(): void {
-        if (this.lastDragUpdate < Date.now() - 200) {
+        if (Date.now() - this.lastDragUpdate > 250) {
             this.lastDragUpdate = Date.now();
             setTimeout(() => {
                 Rune.actions.dragUpdate({ powerDragging: this.powerDragging, px: this.px, py: this.py, power: this.power });
@@ -558,8 +559,9 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     mouseUp(): void {
         this.dragging = false;
 
-        if (this.powerDragging) {
-            if (this.power > 30) {
+        if (this.powerDragging && !this.game?.gameOver) {
+            if (this.power > 30 && Date.now() - this.lastShot > 1000) {
+                this.lastShot = Date.now();
                 this.showSpinner = false;
                 this.firstDrag = false;
                 Rune.actions.shoot({ dx: -this.px / this.power, dy: -this.py / this.power, power: 150 + (this.power * 2) });
