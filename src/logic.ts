@@ -6,7 +6,6 @@ export const ballSize = 18;
 export const maxPower = 200;
 export const goalSize = 30;
 
-
 type GameEvent = ShootEvent | GameOverEvent | NewCourseEvent;
 
 export interface CommonEvent {
@@ -70,11 +69,18 @@ const SVG_COLOR_MAP: Record<string, MaterialType> = {
   "#ff00ff": MaterialType.WOOD,
 }
 
+export const courses: string[] = [
+  "course1.svg",
+  "course2.svg",
+  "course3.svg",
+  "course5.svg",
+  "course4.svg",
+];
+
 export const courseInstances: Course[] = [];
 for (const name of courses) {
   courseInstances.push(loadCourse(name));
 }
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSVGTransform(a: any) {
   if (!a) {
@@ -221,18 +227,6 @@ export function loadCourse(name: string): Course {
   };
 }
 
-export const courses: string[] = [
-  "course1.svg",
-  "course2.svg",
-  "course3.svg",
-  "course5.svg",
-  "course4.svg",
-];
-
-export const courseInstances: Course[] = [];
-for (const name of courses) {
-  courseInstances.push(loadCourse(name));
-}
 
 export interface ActionListener {
   shot(): void;
