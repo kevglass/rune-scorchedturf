@@ -6,13 +6,6 @@ export const ballSize = 18;
 export const maxPower = 200;
 export const goalSize = 30;
 
-export const courses = [
-  "course1.svg",
-  "course2.svg",
-  "course3.svg",
-  "course5.svg",
-  "course4.svg",
-];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSVGTransform(a: any) {
@@ -224,6 +217,19 @@ export function loadCourse(name: string): Course {
   };
 }
 
+export const courses: string[] = [
+  "course1.svg",
+  "course2.svg",
+  "course3.svg",
+  "course5.svg",
+  "course4.svg",
+];
+
+export const courseInstances: Course[] = [];
+for (const name of courses) {
+  courseInstances.push(loadCourse(name));
+}
+
 export interface ActionListener {
   shot(): void;
 
@@ -255,7 +261,7 @@ export interface GameState {
   py: number;
   power: number;
 
-  // course: Course;
+  dynamics: physics.DynamicRigidBody[];
 }
 
 // Quick type so I can pass the complex object that is the 
@@ -377,7 +383,7 @@ Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 6,
   setup: (allPlayerIds: PlayerId[]): GameState => {
-    const course = loadCourse(courses[0]);
+    const course = courseInstances[0];
     const initialState: GameState = {
       gameTime: 0,
       players: [],
@@ -400,7 +406,7 @@ Rune.initLogic({
       power: 0,
       shotsThisCourse: 0,
 
-      // course
+      dynamics: course.world.dynamicBodies
     }
 
     for (const player of allPlayerIds) {
@@ -443,7 +449,7 @@ Rune.initLogic({
     // 1484.0000032782555 (per frame= 5.936000013113022)
     // if (context.game.frameCount < 250) {
     //   const before = performance.now();
-    //   // physics.worldStep(15, context.game.course.world);
+    physics.worldStep(15, courseInstances[context.game.courseNumber].world, context.game.dynamics);
     //   // physics.worldStep(15, context.game.course.world);
     //   const after = performance.now();
     //   // eslint-disable-next-line rune/no-global-scope-mutation
