@@ -1,5 +1,5 @@
 import { graphics, physics, sound, translate } from "togl";
-import { ballSize, GameState, GameUpdate, MaterialType, maxPower, goalSize, ActionListener, Course } from "./logic";
+import { ballSize, GameState, GameUpdate, MaterialType, maxPower, goalSize, ActionListener, Course, courseInstances } from "./logic";
 import { ASSETS } from "./lib/assets";
 import { PlayerId, Players } from "rune-games-sdk";
 import { translations } from "./translates";
@@ -250,7 +250,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 }
             }
             if (event.type === "newCourse") {
-                this.course = JSON.parse(JSON.stringify(event.course));
+                this.course = JSON.parse(JSON.stringify(courseInstances[event.courseNumber]));
                 if (this.course) {
                     this.world = this.course.world;
                     this.showTitle = true;
