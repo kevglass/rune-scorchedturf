@@ -381,8 +381,8 @@ function startCourse(game: GameState, course: Course): void {
 function applyShoot(game: GameState, bodyId: number, dx: number, dy: number, power: number): void {
   const body = game.dynamics.find(b => b.id === bodyId);
   if (body) {
-      body.velocity.x += (dx * power);
-      body.velocity.y += (dy * power)
+    body.velocity.x += (dx * power);
+    body.velocity.y += (dy * power)
   }
 }
 
@@ -473,16 +473,18 @@ Rune.initLogic({
     if (player && !context.game.dynamics.find(b => b.data?.playerId === player.playerId) && !context.game.completed.includes(player.playerId)) {
       const ball = physics.createCircle(world, physics.newVec2(course.start.x + (context.game.players.indexOf(player) * 1), course.start.y), ballSize, 10, 1, 1);
       ball.data = { playerId: player.playerId };
+      // set dynamic body IDs separately so they stay synced
       ball.id = context.game.nextBallId++;
       physics.addBody(course.world, ball, context.game.dynamics);
     }
 
-    const firstSet = physics.worldStep(30, world, context.game.dynamics);
-    const secondSet = physics.worldStep(30, world, context.game.dynamics);
+    const firstSet = physics.worldStep(15, world, context.game.dynamics);
+    const enabledBodies = physics.enabledBodies(world, context.game.dynamics);
+    const atRest = physics.atRest(world, 1, context.game.dynamics);
 
-    for (const collision of [...firstSet, ...secondSet]) {
-      const bodyA = physics.enabledBodies(world, context.game.dynamics).find(b => b.id === collision.bodyAId);
-      const bodyB = physics.enabledBodies(world, context.game.dynamics).find(b => b.id === collision.bodyBId);
+    for (const collision of firstSet) {
+      const bodyA = enabledBodies.find(b => b.id === collision.bodyAId);
+      const bodyB = enabledBodies.find(b => b.id === collision.bodyBId);
       for (const body of [bodyA, bodyB]) {
         if (body?.data?.originalBounds) {
           body.bounds = body.data.originalBounds * 1.25;
@@ -498,7 +500,13 @@ Rune.initLogic({
       }
     }
 
-    for (const body of physics.enabledBodies(world, context.game.dynamics)) {
+    // if (firstSet.length > 0 ) {
+    //   const maxDepth = Math.max(...firstSet.map(c => c.depth));
+    //   // TODO: Collision event
+    //   // this.collision(maxDepth);
+    // }
+
+    for (const body of enabledBodies) {
       if (body.data) {
         if (body.data.deflate && body.data.deflate < Rune.gameTime()) {
           delete body.data.deflate;
@@ -508,32 +516,31 @@ Rune.initLogic({
     }
 
     for (const body of [...context.game.dynamics]) {
-      const distanceToGoal = physics.lengthVec2(physics.subtractVec2(course.goal, body.center));
-      if (distanceToGoal < body.bounds + goalSize) {
-        physics.removeBody(course.world, body, context.game.dynamics);
-        context.game.completed.push(body.data.playerId);
-        // TODO: Reached goal
-        // sound.playSound(this.sfxHole);
+      if (atRest) {
+        for (const b of context.game.dynamics) {
+          b.data.initialX = b.center.x;
+          b.data.initialY = b.center.y;
+        }
+      } else {
+        const distanceToGoal = physics.lengthVec2(physics.subtractVec2(course.goal, body.center));
+        if (distanceToGoal < body.bounds + goalSize) {
+          physics.removeBody(course.world, body, context.game.dynamics);
+          context.game.completed.push(body.data.playerId);
+          // TODO: Reached goal
+          // sound.playSound(this.sfxHole);
+        }
+
+        if (body.center.y > physics.getWorldBounds(world, true).max.y + 100) {
+          body.velocity.x = 0;
+          body.velocity.y = 0;
+          body.center.x = body.averageCenter.x = body.data.initialX;
+          body.center.y = body.averageCenter.y = body.data.initialY;
+          body.data.outOfBounds = true;
+        }
       }
     }
 
-    if (firstSet.length > 0 || secondSet.length > 0) {
-      const maxDepth = Math.max(...firstSet.map(c => c.depth), ...secondSet.map(c => c.depth));
-      // TODO: Collision event
-      // this.collision(maxDepth);
-    }
-
-    for (const body of context.game.dynamics) {
-      if (body.center.y > physics.getWorldBounds(world, true).max.y + 100) {
-        body.velocity.x = 0;
-        body.velocity.y = 0;
-        body.center.x = body.averageCenter.x = body.data.initialX;
-        body.center.y = body.averageCenter.y = body.data.initialY;
-        body.data.outOfBounds = true;
-      }
-    }
-
-    if (physics.atRest(world, 1, context.game.dynamics) && context.game.nextTurnAt === 0 && context.game.changeTurn) {
+    if (atRest && context.game.nextTurnAt === 0 && context.game.changeTurn) {
       context.game.nextTurnAt = Rune.gameTime() + 1000;
       context.game.changeTurn = false;
     }
@@ -543,13 +550,6 @@ Rune.initLogic({
       context.game.nextTurnAt = 0;
     } else if (context.game.whoseTurn && !context.allPlayerIds.includes(context.game.whoseTurn)) {
       nextTurn(context.game);
-    }
-
-    if (physics.atRest(world, 1, context.game.dynamics)) {
-      for (const b of context.game.dynamics) {
-        b.data.initialX = b.center.x;
-        b.data.initialY = b.center.y;
-      }
     }
 
     // if the world is at rest remove any bodies that should be 
