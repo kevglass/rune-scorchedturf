@@ -454,6 +454,9 @@ Rune.initLogic({
     context.game.frameCount++;
     context.game.gameTime = Rune.gameTime();
 
+    // even without mutative too slow
+    // context.game.dynamics = JSON.parse(JSON.stringify(context.game.dynamics));
+
     const course = courseInstances[context.game.courseNumber];
     const world = course.world;
 
