@@ -14,21 +14,6 @@ export const courses = [
   "course4.svg",
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseSVGTransform(a: any) {
-  if (!a) {
-    return {};
-  }
-
-  a = a.replaceAll(" ", ",");
-  const b: Record<string, number[]> = {};
-  for (const i in a = a.match(/(\w+\((-?\d+\.?\d*e?-?\d*,?)+\))+/g)) {
-    const c = a[i].match(/[\w.-]+/g);
-    b[c.shift()] = c.map((i: string) => Number.parseFloat(i));
-  }
-  return b;
-}
-
 type GameEvent = ShootEvent | GameOverEvent | NewCourseEvent;
 
 export interface CommonEvent {
@@ -45,7 +30,6 @@ export interface ShootEvent extends CommonEvent {
 
 export interface NewCourseEvent extends CommonEvent {
   type: "newCourse",
-  course: Course,
   courseNumber: number
 }
 
@@ -91,6 +75,26 @@ const SVG_COLOR_MAP: Record<string, MaterialType> = {
   "#0000ff": MaterialType.BLOCK,
   "#00ffff": MaterialType.PEG,
   "#ff00ff": MaterialType.WOOD,
+}
+
+export const courseInstances: Course[] = [];
+for (const name of courses) {
+  courseInstances.push(loadCourse(name));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseSVGTransform(a: any) {
+  if (!a) {
+    return {};
+  }
+
+  a = a.replaceAll(" ", ",");
+  const b: Record<string, number[]> = {};
+  for (const i in a = a.match(/(\w+\((-?\d+\.?\d*e?-?\d*,?)+\))+/g)) {
+    const c = a[i].match(/[\w.-]+/g);
+    b[c.shift()] = c.map((i: string) => Number.parseFloat(i));
+  }
+  return b;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -341,7 +345,7 @@ function removePlayer(state: GameState, id: PlayerId): void {
 
 function loadNextCourse(game: GameState): void {
   game.courseNumber++;
-  startCourse(game, loadCourse(courses[game.courseNumber]));
+  startCourse(game, courseInstances[game.courseNumber]);
 }
 
 // let totalTime = 0;
@@ -353,7 +357,6 @@ function startCourse(game: GameState, course: Course): void {
   game.events.push({
     id: game.nextId++,
     type: "newCourse",
-    course,
     gameTime: Rune.gameTime(),
     courseNumber: game.courseNumber
   } as NewCourseEvent);
