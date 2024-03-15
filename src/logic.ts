@@ -18,6 +18,7 @@ export interface ShootEvent extends CommonEvent {
   dx: number;
   dy: number;
   power: number;
+  time: number;
 }
 
 export interface NewCourseEvent extends CommonEvent {
@@ -244,7 +245,6 @@ export interface GameState {
   nextTurnAt: number;
   nextCourseAt: number;
   events: GameEvent[];
-  executed: number;
   nextId: number;
   courseNumber: number;
   completed: string[];
@@ -253,11 +253,13 @@ export interface GameState {
   frameCount: number;
   totalPar: number;
   shotsThisCourse: number;
+  changeTurn: boolean;
 
   powerDragging: boolean;
   px: number;
   py: number;
   power: number;
+  nextBallId: number;
 
   dynamics: physics.DynamicRigidBody[];
 }
@@ -279,7 +281,6 @@ type GameActions = {
   shoot: (params: { dx: number, dy: number, power: number }) => void;
   reachedGoal: (params: { playerId: string, courseId: number }) => void;
   dragUpdate: (params: { powerDragging: boolean, px: number, py: number, power: number }) => void;
-  endTurn: () => void;
 }
 
 declare global {
@@ -376,6 +377,15 @@ function startCourse(game: GameState, course: Course): void {
   game.whoseTurn = game.players[0].playerId;
 }
 
+
+function applyShoot(game: GameState, bodyId: number, dx: number, dy: number, power: number): void {
+  const body = game.dynamics.find(b => b.id === bodyId);
+  if (body) {
+      body.velocity.x += (dx * power);
+      body.velocity.y += (dy * power)
+  }
+}
+
 Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 6,
@@ -386,12 +396,12 @@ Rune.initLogic({
       players: [],
       joinedPlayers: [],
       events: [],
-      executed: 0,
       nextId: 1,
       courseNumber: 0,
       completed: [],
       nextTurnAt: 0,
       nextCourseAt: 0,
+      changeTurn: false,
       gameOver: false,
       startGame: true,
       frameCount: 0,
@@ -402,6 +412,7 @@ Rune.initLogic({
       py: 0,
       power: 0,
       shotsThisCourse: 0,
+      nextBallId: 1,
 
       dynamics: course.world.dynamicBodies
     }
@@ -443,18 +454,88 @@ Rune.initLogic({
     context.game.frameCount++;
     context.game.gameTime = Rune.gameTime();
 
-    // 1484.0000032782555 (per frame= 5.936000013113022)
-    // if (context.game.frameCount < 250) {
-    //   const before = performance.now();
-    physics.worldStep(15, courseInstances[context.game.courseNumber].world, context.game.dynamics);
-    //   // physics.worldStep(15, context.game.course.world);
-    //   const after = performance.now();
-    //   // eslint-disable-next-line rune/no-global-scope-mutation
-    //   totalTime += (after - before);
-    // }
+    const course = courseInstances[context.game.courseNumber];
+    const world = course.world;
 
-    if (context.game.frameCount === 250) {
-      // console.log(totalTime + " (per frame= " + (totalTime / context.game.frameCount) +")");
+    for (const event of [...context.game.events]) {
+      if (event.type === "shoot" && event.time < Rune.gameTime()) {
+        context.game.events.splice(context.game.events.indexOf(event), 1);
+        const body = context.game.dynamics.find(b => b.data?.playerId === event.playerId);
+        if (body) {
+          // TODO: Shot event
+          //this.shot();
+          applyShoot(context.game, body.id, event.dx, event.dy, event.power);
+          context.game.changeTurn = true;
+        }
+      }
+    }
+    const player = context.game.players.find(p => p.playerId === context.game.whoseTurn);
+    if (player && !context.game.dynamics.find(b => b.data?.playerId === player.playerId) && !context.game.completed.includes(player.playerId)) {
+      const ball = physics.createCircle(world, physics.newVec2(course.start.x + (context.game.players.indexOf(player) * 1), course.start.y), ballSize, 10, 1, 1);
+      ball.data = { playerId: player.playerId };
+      ball.id = context.game.nextBallId++;
+      physics.addBody(course.world, ball, context.game.dynamics);
+    }
+
+    const firstSet = physics.worldStep(30, world, context.game.dynamics);
+    const secondSet = physics.worldStep(30, world, context.game.dynamics);
+
+    for (const collision of [...firstSet, ...secondSet]) {
+      const bodyA = physics.enabledBodies(world, context.game.dynamics).find(b => b.id === collision.bodyAId);
+      const bodyB = physics.enabledBodies(world, context.game.dynamics).find(b => b.id === collision.bodyBId);
+      for (const body of [bodyA, bodyB]) {
+        if (body?.data?.originalBounds) {
+          body.bounds = body.data.originalBounds * 1.25;
+          if (!body.data?.deflate) {
+            const other = body === bodyA ? bodyB : bodyA;
+            if (other && !other.static) {
+              const vec = physics.subtractVec2(other.center, body.center);
+              other.velocity = physics.addVec2(other.velocity, physics.scaleVec2(physics.normalize(vec), 300));
+            }
+          }
+          body.data.deflate = Rune.gameTime() + 1000;
+        }
+      }
+    }
+
+    for (const body of physics.enabledBodies(world, context.game.dynamics)) {
+      if (body.data) {
+        if (body.data.deflate && body.data.deflate < Rune.gameTime()) {
+          delete body.data.deflate;
+          body.bounds = body.data.originalBounds;
+        }
+      }
+    }
+
+    for (const body of [...context.game.dynamics]) {
+      const distanceToGoal = physics.lengthVec2(physics.subtractVec2(course.goal, body.center));
+      if (distanceToGoal < body.bounds + goalSize) {
+        physics.removeBody(course.world, body, context.game.dynamics);
+        context.game.completed.push(body.data.playerId);
+        // TODO: Reached goal
+        // sound.playSound(this.sfxHole);
+      }
+    }
+
+    if (firstSet.length > 0 || secondSet.length > 0) {
+      const maxDepth = Math.max(...firstSet.map(c => c.depth), ...secondSet.map(c => c.depth));
+      // TODO: Collision event
+      // this.collision(maxDepth);
+    }
+
+    for (const body of context.game.dynamics) {
+      if (body.center.y > physics.getWorldBounds(world, true).max.y + 100) {
+        body.velocity.x = 0;
+        body.velocity.y = 0;
+        body.center.x = body.averageCenter.x = body.data.initialX;
+        body.center.y = body.averageCenter.y = body.data.initialY;
+        body.data.outOfBounds = true;
+      }
+    }
+
+    if (physics.atRest(world, 1, context.game.dynamics) && context.game.nextTurnAt === 0 && context.game.changeTurn) {
+      context.game.nextTurnAt = Rune.gameTime() + 1000;
+      context.game.changeTurn = false;
     }
 
     if (context.game.nextTurnAt !== 0 && Rune.gameTime() > context.game.nextTurnAt) {
@@ -462,6 +543,32 @@ Rune.initLogic({
       context.game.nextTurnAt = 0;
     } else if (context.game.whoseTurn && !context.allPlayerIds.includes(context.game.whoseTurn)) {
       nextTurn(context.game);
+    }
+
+    if (physics.atRest(world, 1, context.game.dynamics)) {
+      for (const b of context.game.dynamics) {
+        b.data.initialX = b.center.x;
+        b.data.initialY = b.center.y;
+      }
+    }
+
+    // if the world is at rest remove any bodies that should be 
+    // there because players left
+    for (const body of context.game.dynamics.filter(b => b.data.playerId)) {
+      const expectedId = body.data.playerId;
+      if (!context.game.players.find(p => p.playerId === expectedId)) {
+        // player has left the game
+        const index = context.game.dynamics.indexOf(body);
+        context.game.dynamics.splice(index, 1);
+      }
+    }
+
+    const currentBody = context.game.dynamics.find(p => p.data.playerId === context.game?.whoseTurn);
+    if (currentBody?.data.outOfBounds) {
+      // TODO: Out of bounds indication
+      // this.outOfBoundsTimer = Date.now() + 2000;
+      // this.trail = [];
+      currentBody.data.outOfBounds = false;
     }
 
     if (context.game.nextCourseAt !== 0 && Rune.gameTime() > context.game.nextCourseAt) {
@@ -494,15 +601,11 @@ Rune.initLogic({
           type: "shoot",
           dx: params.dx,
           dy: params.dy,
-          power: params.power
+          power: params.power,
+          time: Rune.gameTime() + 500
         };
 
         context.game.events.push(event);
-      }
-    },
-    endTurn: (params, context) => {
-      if (context.game.whoseTurn === context.playerId) {
-        context.game.nextTurnAt = Rune.gameTime() + 1000;
       }
     }
   },

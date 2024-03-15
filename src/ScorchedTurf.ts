@@ -86,15 +86,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     showTitleTimer = 0;
 
     trail: TrailPoint[] = [];
-    courseNumber = -1;
-    completed: string[] = [];
-
     currentBody?: physics.Body;
-
-    lastSink?: Sink;
     gameOver = false;
-
-    outOfBoundsTimer = 0;
 
     frameCount = 0;
 
@@ -108,7 +101,6 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     showSpinner = false;
     whoseTurn = "";
     course?: Course;
-    executionCounter = -1;
     startPhysics = 0;
 
     zoom = 1;
@@ -117,7 +109,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     firstDrag = true;
     lastMovingSim = 0;
     lastShot = 0;
-    
+    currentCourseNumber = -1
+
     constructor() {
         graphics.init(graphics.RendererType.WEBGL, true, 2048, 10);
 
@@ -223,144 +216,40 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     }
 
     get courseComplete(): boolean {
-        return (this.game && this.players && !this.world?.dynamicBodies.find(b => b.data.playerId)) ? true : false;
+        return (this.game && this.players && !this.game.dynamics.find(b => b.data.playerId)) ? true : false;
     }
 
     start(): void {
         graphics.startRendering(this);
     }
 
-    applyShoot(world: physics.World, bodyId: number, dx: number, dy: number, power: number): void {
-        const body = world.dynamicBodies.find(b => b.id === bodyId);
-        if (body) {
-            body.velocity.x += (dx * power);
-            body.velocity.y += (dy * power)
-        }
-    }
-
     runUpdate(game: GameState): void {
-        for (const event of game.events.filter(e => e.id > this.executionCounter)) {
-            this.executionCounter = event.id;
-            if (event.type === "shoot" && event.dx && event.dy && event.power && this.course) {
-                const body = this.course.world.dynamicBodies.find(b => b.data?.playerId === event.playerId);
-                if (body) {
-                    this.shot();
-                    this.applyShoot(this.course.world, body.id, event.dx, event.dy, event.power);
-                    this.startPhysics = Date.now();
-                }
+        if (this.currentCourseNumber !== game.courseNumber) {
+            this.course = JSON.parse(JSON.stringify(courseInstances[game.courseNumber]));
+            if (this.course) {
+                this.world = this.course.world;
+                this.showTitle = true;
+                this.showTitleTimer = Date.now();
+                this.gameOver = false;
+                this.showSpinner = true;
             }
-            if (event.type === "newCourse") {
-                this.course = JSON.parse(JSON.stringify(courseInstances[event.courseNumber]));
-                if (this.course) {
-                    this.world = this.course.world;
-                    this.showTitle = true;
-                    this.showTitleTimer = Date.now();
-                    this.completed = [];
-                    this.gameOver = false;
-                    this.courseNumber = event.courseNumber;
-                    this.showSpinner = true;
-                }
-            }
-            if (event.type === "gameOver") {
-                this.gameOver = true;
-            }
+            this.currentCourseNumber = game.courseNumber;
         }
 
-        if (this.course) {
-            for (const body of this.course.world.dynamicBodies) {
-                if (body.center.y > physics.getWorldBounds(this.course.world, true).max.y + 100) {
-                    body.velocity.x = 0;
-                    body.velocity.y = 0;
-                    body.center.x = body.averageCenter.x = body.data.initialX;
-                    body.center.y = body.averageCenter.y = body.data.initialY;
-                    body.data.outOfBounds = true;
-                }
-            }
-
-            if (game.whoseTurn && !game.gameOver && !this.completed.includes(game.whoseTurn)) {
-                const player = game.players.find(p => p.playerId === game.whoseTurn);
-                if (player && !this.course.world.dynamicBodies.find(b => b.data?.playerId === player.playerId) && !game.completed.includes(player.playerId)) {
-                    const ball = physics.createCircle(this.course.world, physics.newVec2(this.course.start.x + (game.players.indexOf(player) * 1), this.course.start.y), ballSize, 10, 1, 1);
-                    ball.data = { playerId: player.playerId };
-                    physics.addBody(this.course.world, ball);
-                }
-            }
-
-            if (!physics.atRest(this.course.world) || Date.now() - this.startPhysics < 2000) {
-                const firstSet = physics.worldStep(30, this.course.world);
-                const secondSet = physics.worldStep(30, this.course.world);
-
-                for (const collision of [...firstSet, ...secondSet]) {
-                    const bodyA = physics.enabledBodies(this.course.world).find(b => b.id === collision.bodyAId);
-                    const bodyB = physics.enabledBodies(this.course.world).find(b => b.id === collision.bodyBId);
-                    for (const body of [bodyA, bodyB]) {
-                        if (body?.data?.originalBounds) {
-                            body.bounds = body.data.originalBounds * 1.25;
-                            if (!body.data?.deflate) {
-                                const other = body === bodyA ? bodyB : bodyA;
-                                if (other && !other.static) {
-                                    const vec = physics.subtractVec2(other.center, body.center);
-                                    other.velocity = physics.addVec2(other.velocity, physics.scaleVec2(physics.normalize(vec), 300));
-                                }
-                            }
-                            body.data.deflate = Rune.gameTime() + 1000;
-                        }
-                    }
-                }
-                if (firstSet.length > 0 || secondSet.length > 0) {
-                    const maxDepth = Math.max(...firstSet.map(c => c.depth), ...secondSet.map(c => c.depth));
-                    this.collision(maxDepth);
-                }
-        
-                let ballMoving = false;
-                for (const body of physics.enabledBodies(this.course.world)) {
-                    if (body.data) {
-                        if (body.data.deflate && body.data.deflate < Rune.gameTime()) {
-                            delete body.data.deflate;
-                            body.bounds = body.data.originalBounds;
-                        }
-                    }
-
-                    // theres a ball still moving
-                    if (body.data.playerId && !body.static && body.restingTime < 1) {
-                        ballMoving = true;
-                    }
-                }
-
-                if (!ballMoving) {
-                    for (let i=0;i<5;i++) {
-                        physics.worldStep(30, this.course.world);
-                    }
-                }
-
-                for (const body of [...this.course.world.dynamicBodies]) {
-                    const distanceToGoal = physics.lengthVec2(physics.subtractVec2(this.course.goal, body.center));
-                    if (distanceToGoal < body.bounds + goalSize) {
-                        sound.playSound(this.sfxHole);
-                        this.completed.push(body.data.playerId);
-                        physics.removeBody(this.course.world, body);
-                        setTimeout(() => {
-                            Rune.actions.reachedGoal({ playerId: body.data.playerId, courseId: this.courseNumber })
-                        }, 1);
-                        this.lastSink = {
-                            playerId: body.data.playerId,
-                            time: Date.now()
-                        }
-                        this.showSpinner = false;
-                    } else {
-                        if (body == this.currentBody && this.outOfBoundsTimer < Date.now() && physics.lengthVec2(body.velocity) > 10) {
-                            if (this.frameCount % 2 === 0) {
-                                this.trail.splice(0, 0, {
-                                    life: PARTICLE_LIFE,
-                                    x: body.center.x,
-                                    y: body.center.y
-                                });
-                            }
-                        }
-                    }
-                }
-            }
+        if (this.course && this.game) {
+            this.course.world.dynamicBodies = this.game.dynamics;
         }
+
+        // TODO : Work out the trail
+        // if (body == this.currentBody && this.outOfBoundsTimer < Date.now() && physics.lengthVec2(body.velocity) > 10) {
+        //     if (this.frameCount % 2 === 0) {
+        //       this.trail.splice(0, 0, {
+        //         life: PARTICLE_LIFE,
+        //         x: body.center.x,
+        //         y: body.center.y
+        //       });
+        //     }
+        //   }
     }
 
     sendDragUpdate(): void {
@@ -380,7 +269,6 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
 
         if (this.game.startGame) {
             this.gameOver = false;
-            this.executionCounter = 0;
             this.hasCourseMessage = true;
         }
         if (this.game.shotsThisCourse === 0) {
@@ -402,7 +290,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             this.power = update.game.power;
         }
         // if theres only one player left, always show the the spinner
-        if (this.course && this.course.world.dynamicBodies.filter(b => b.data.playerId).map(b => b.data.playerId).filter(id => !this.game?.completed.includes(id)).length === 1) {
+        if (this.course && this.game.dynamics.filter(b => b.data.playerId).map(b => b.data.playerId).filter(id => !this.game?.completed.includes(id)).length === 1) {
             if (!this.game.completed.includes(this.whoseTurn)) {
                 this.showSpinner = true;
             }
@@ -412,39 +300,6 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
 
         if (this.course) {
             this.world = this.course.world;
-            if (!physics.atRest(this.world)) {
-                this.dragOffsetX = 0;
-                this.dragOffsetY = 0;
-            } else {
-                for (const b of this.course.world.dynamicBodies) {
-                    b.data.initialX = b.center.x;
-                    b.data.initialY = b.center.y;
-                }
-                
-                // if the world is at rest remove any bodies that should be 
-                // there because players left
-                for (const body of this.world.dynamicBodies.filter(b => b.data.playerId)) {
-                    const expectedId = body.data.playerId;
-                    if (!this.players[expectedId] || this.players[expectedId].displayName === "Player Left") {
-                        // player has left the game
-                        const index = this.world.dynamicBodies.indexOf(body);
-                        this.world.dynamicBodies.splice(index, 1);
-                    }
-                }
-            }
-            if (physics.atRest(this.world) && Rune.gameTime() > this.changeTurnAt && this.changeTurnAt !== 0) {
-                if (update.game.whoseTurn === this.localPlayerId) {
-                    this.changeTurnAt = 0;
-                    setTimeout(() => { if (this.world) { Rune.actions.endTurn(); } }, 1);
-                }
-            }
-
-            const currentBody = this.world.dynamicBodies.find(p => p.data.playerId === this.game?.whoseTurn);
-            if (currentBody?.data.outOfBounds) {
-                this.outOfBoundsTimer = Date.now() + 2000;
-                currentBody.data.outOfBounds = false;
-                this.trail = [];
-            }
 
             for (const p of [...this.trail]) {
                 p.life--;
@@ -480,9 +335,10 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             return;
         }
 
-        if (this.outOfBoundsTimer !== 0 && this.outOfBoundsTimer > Date.now()) {
-            return;
-        }
+        // TODO
+        // if (this.outOfBoundsTimer !== 0 && this.outOfBoundsTimer > Date.now()) {
+        //     return;
+        // }
 
         x -= Math.floor((graphics.width() / 2));
         y -= Math.floor((graphics.height() / 2));
@@ -497,7 +353,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         if (this.currentWorld && physics.atRest(this.currentWorld)) {
             this.dragging = true;
             if (this.game && this.myTurn()) {
-                const body = this.currentWorld.dynamicBodies.find(b => b.data?.playerId === this.localPlayerId);
+                const body = this.game.dynamics.find(b => b.data?.playerId === this.localPlayerId);
                 if (body) {
                     if (body.data.playerId === this.game.whoseTurn && this.game.whoseTurn === this.localPlayerId) {
                         const dx = x - body.center.x;
@@ -535,7 +391,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
 
         if (this.game && this.currentWorld && physics.atRest(this.currentWorld)) {
             if (this.powerDragging) {
-                const body = this.currentWorld.dynamicBodies.find(b => b.data?.playerId === this.localPlayerId);
+                const body = this.game.dynamics.find(b => b.data?.playerId === this.localPlayerId);
                 if (body) {
                     if (body.data.playerId === this.game.whoseTurn && this.game.whoseTurn === this.localPlayerId) {
                         const dx = x - body.center.x;
@@ -647,7 +503,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             graphics.push();
             this.vx = this.course.start.x;
             this.vy = this.course.start.y;
-            const body = this.currentWorld.dynamicBodies.find(b => b.data.playerId === this.game?.whoseTurn);
+            const body = this.game.dynamics.find(b => b.data.playerId === this.game?.whoseTurn);
             if (!this.currentBody || (this.currentBody !== body && body)) {
                 this.currentBody = body;
             }
@@ -717,7 +573,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             graphics.drawTile(this.flag, this.course.goal.x - 6, this.course.goal.y - flagHeight, 0, flagWidth, flagHeight);
 
             if (this.powerDragging && this.power > 30 && atRest) {
-                const body = this.currentWorld.dynamicBodies.find(b => b.data.playerId === this.game?.whoseTurn);
+                const body = this.game.dynamics.find(b => b.data.playerId === this.game?.whoseTurn);
                 if (body) {
                     if (body.data.playerId !== this.localPlayerId) {
                         graphics.alpha(0.5);
@@ -837,7 +693,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 graphics.translate(0, -100);
                 graphics.alpha(a);
                 graphics.fillRect(0, (graphics.height() / 2) - 70, graphics.width(), 120, "rgba(0,0,0,0.5)");
-                graphics.centerText("Hole " + (this.courseNumber + 1), (graphics.height() / 2) - 40, this.fontBig, "#ddd");
+                graphics.centerText("Hole " + (this.game.courseNumber + 1), (graphics.height() / 2) - 40, this.fontBig, "#ddd");
                 graphics.centerText(this.course.name, (graphics.height() / 2), this.fontBigger);
                 graphics.centerText("Par " + this.course.par, (graphics.height() / 2) + 35, this.fontBig, "#ddd");
                 graphics.alpha(1);
@@ -845,27 +701,29 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
             }
         }
 
-        if (this.players && this.lastSink && Date.now() - this.lastSink.time < 3000) {
-            const playerData = this.game.players.find(p => p.playerId === this.lastSink?.playerId);
-            if (playerData) {
-                const sinceShown = Date.now() - this.lastSink.time;
-                let a = 1;
-                if (sinceShown > 2500) {
-                    a = 1 - ((sinceShown - 2500) / 500);
-                }
-                graphics.alpha(a);
-                graphics.fillRect(0, 10, graphics.width(), 45, "rgba(0,0,0,0.5)");
-                const message = this.players[this.lastSink.playerId].displayName + " gets a hole in " + playerData.shots + "!";
-                graphics.centerText(message, 28, this.fontSmall);
-                graphics.centerText("(" + this.toParName(this.course.par, playerData.shots) + ")", 48, this.fontSmall, "#ddd");
-                graphics.alpha(1);
-            }
-        }
+        // TODO
+        // if (this.players && this.lastSink && Date.now() - this.lastSink.time < 3000) {
+        //     const playerData = this.game.players.find(p => p.playerId === this.lastSink?.playerId);
+        //     if (playerData) {
+        //         const sinceShown = Date.now() - this.lastSink.time;
+        //         let a = 1;
+        //         if (sinceShown > 2500) {
+        //             a = 1 - ((sinceShown - 2500) / 500);
+        //         }
+        //         graphics.alpha(a);
+        //         graphics.fillRect(0, 10, graphics.width(), 45, "rgba(0,0,0,0.5)");
+        //         const message = this.players[this.lastSink.playerId].displayName + " gets a hole in " + playerData.shots + "!";
+        //         graphics.centerText(message, 28, this.fontSmall);
+        //         graphics.centerText("(" + this.toParName(this.course.par, playerData.shots) + ")", 48, this.fontSmall, "#ddd");
+        //         graphics.alpha(1);
+        //     }
+        // }
 
-        if (this.outOfBoundsTimer > Date.now()) {
-            graphics.fillRect(0, 60, graphics.width(), 50, "rgba(0,0,0,0.5)");
-            graphics.centerText("Out of Bounds!", 100, this.fontBigger);
-        }
+        // TODO
+        // if (this.outOfBoundsTimer > Date.now()) {
+        //     graphics.fillRect(0, 60, graphics.width(), 50, "rgba(0,0,0,0.5)");
+        //     graphics.centerText("Out of Bounds!", 100, this.fontBigger);
+        // }
         if ((this.gameOver || this.courseComplete) && this.game && this.players) {
             let y = 100;
             graphics.fillRect(0, y - 40, graphics.width(), 50, "rgba(0,0,0,0.5)");
