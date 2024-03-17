@@ -378,8 +378,8 @@ function startCourse(game: GameState, course: Course): void {
 }
 
 
-function applyShoot(game: GameState, bodyId: number, dx: number, dy: number, power: number): void {
-  const body = game.dynamics.find(b => b.id === bodyId);
+function applyShoot(dynamics: physics.DynamicRigidBody[], bodyId: number, dx: number, dy: number, power: number): void {
+  const body = dynamics.find(b => b.id === bodyId);
   if (body) {
     body.velocity.x += (dx * power);
     body.velocity.y += (dy * power)
@@ -455,7 +455,8 @@ Rune.initLogic({
     context.game.gameTime = Rune.gameTime();
 
     // even without mutative too slow
-    // context.game.dynamics = JSON.parse(JSON.stringify(context.game.dynamics));
+    //const dynamics = JSON.parse(JSON.stringify(context.game.dynamics)) as physics.DynamicRigidBody[];
+    const dynamics = context.game.dynamics;
 
     const course = courseInstances[context.game.courseNumber];
     const world = course.world;
@@ -463,27 +464,27 @@ Rune.initLogic({
     for (const event of [...context.game.events]) {
       if (event.type === "shoot" && event.time < Rune.gameTime()) {
         context.game.events.splice(context.game.events.indexOf(event), 1);
-        const body = context.game.dynamics.find(b => b.data?.playerId === event.playerId);
+        const body = dynamics.find(b => b.data?.playerId === event.playerId);
         if (body) {
           // TODO: Shot event
           //this.shot();
-          applyShoot(context.game, body.id, event.dx, event.dy, event.power);
+          applyShoot(dynamics, body.id, event.dx, event.dy, event.power);
           context.game.changeTurn = true;
         }
       }
     }
     const player = context.game.players.find(p => p.playerId === context.game.whoseTurn);
-    if (player && !context.game.dynamics.find(b => b.data?.playerId === player.playerId) && !context.game.completed.includes(player.playerId)) {
+    if (player && !dynamics.find(b => b.data?.playerId === player.playerId) && !context.game.completed.includes(player.playerId)) {
       const ball = physics.createCircle(world, physics.newVec2(course.start.x + (context.game.players.indexOf(player) * 1), course.start.y), ballSize, 10, 1, 1);
       ball.data = { playerId: player.playerId };
       // set dynamic body IDs separately so they stay synced
       ball.id = context.game.nextBallId++;
-      physics.addBody(course.world, ball, context.game.dynamics);
+      physics.addBody(course.world, ball, dynamics);
     }
 
-    const firstSet = physics.worldStep(15, world, context.game.dynamics);
-    const enabledBodies = physics.enabledBodies(world, context.game.dynamics);
-    const atRest = physics.atRest(world, 1, context.game.dynamics);
+    const firstSet = physics.worldStep(15, world, dynamics);
+    const enabledBodies = physics.enabledBodies(world, dynamics);
+    const atRest = physics.atRest(world, 1, dynamics);
 
     for (const collision of firstSet) {
       const bodyA = enabledBodies.find(b => b.id === collision.bodyAId);
@@ -518,16 +519,16 @@ Rune.initLogic({
       }
     }
 
-    for (const body of [...context.game.dynamics]) {
+    for (const body of [...dynamics]) {
       if (atRest) {
-        for (const b of context.game.dynamics) {
+        for (const b of dynamics) {
           b.data.initialX = b.center.x;
           b.data.initialY = b.center.y;
         }
       } else {
         const distanceToGoal = physics.lengthVec2(physics.subtractVec2(course.goal, body.center));
         if (distanceToGoal < body.bounds + goalSize) {
-          physics.removeBody(course.world, body, context.game.dynamics);
+          physics.removeBody(course.world, body, dynamics);
           context.game.completed.push(body.data.playerId);
           // TODO: Reached goal
           // sound.playSound(this.sfxHole);
@@ -557,21 +558,25 @@ Rune.initLogic({
 
     // if the world is at rest remove any bodies that should be 
     // there because players left
-    for (const body of context.game.dynamics.filter(b => b.data.playerId)) {
+    for (const body of dynamics.filter(b => b.data.playerId)) {
       const expectedId = body.data.playerId;
       if (!context.game.players.find(p => p.playerId === expectedId)) {
         // player has left the game
-        const index = context.game.dynamics.indexOf(body);
-        context.game.dynamics.splice(index, 1);
+        const index = dynamics.indexOf(body);
+        dynamics.splice(index, 1);
       }
     }
 
-    const currentBody = context.game.dynamics.find(p => p.data.playerId === context.game?.whoseTurn);
+    const currentBody = dynamics.find(p => p.data.playerId === context.game?.whoseTurn);
     if (currentBody?.data.outOfBounds) {
       // TODO: Out of bounds indication
       // this.outOfBoundsTimer = Date.now() + 2000;
       // this.trail = [];
       currentBody.data.outOfBounds = false;
+    }
+
+    if (context.game.dynamics !== dynamics) {
+      context.game.dynamics = dynamics;
     }
 
     if (context.game.nextCourseAt !== 0 && Rune.gameTime() > context.game.nextCourseAt) {
