@@ -1,6 +1,6 @@
 # Scorched Turf
 
-A game using the Rune SDK to play multiplayer 2d gravity based golf. 
+A game using the Rune SDK to play multiplayer 2d gravity based golf. This isn't an example of stellar coding, just a simple fun physics based game.
 
 ## How to Play
 
