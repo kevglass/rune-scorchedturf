@@ -1,5 +1,5 @@
 import type { OnChangeAction, OnChangeEvent, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
-import { physics, xml } from "togl/logic";
+import { physics, xml } from "toglib/logic";
 import { ASSETS } from "./lib/rawassets";
 
 export const ballSize = 18;

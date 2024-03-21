@@ -1,4 +1,4 @@
-import { graphics, physics, sound, translate } from "togl";
+import { graphics, physics, sound, translate } from "toglib";
 import { ballSize, GameState, GameUpdate, MaterialType, maxPower, goalSize, ActionListener, Course, courseInstances } from "./logic";
 import { ASSETS } from "./lib/assets";
 import { PlayerId, Players } from "rune-games-sdk";

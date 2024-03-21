@@ -11,12 +11,12 @@ export default defineConfig({
     rune({ logicPath: path.resolve("./src/logic.ts") }),
   ],
   optimizeDeps: {
-    include: ['togl', "togl/logic"],
+    include: ['toglib', "toglib/logic"],
   },
   assetsInclude: ["**/*.svg"],
   build: {
     commonjsOptions: {
-      include: [/togl/],
+      include: [/toglib/],
     },
   },
 })
