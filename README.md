@@ -2,6 +2,8 @@
 
 A game using the Rune SDK to play multiplayer 2d gravity based golf. This isn't an example of stellar coding, just a simple fun physics based game.
 
+_All game assets are licensed for use in these projects. They remain copyright of their authors._
+
 ## How to Play
 
 * Wait for your turn
