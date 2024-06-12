@@ -1,7 +1,7 @@
 import { graphics, physics, sound, translate } from "toglib";
-import { ballSize, GameState, GameUpdate, MaterialType, maxPower, goalSize, ActionListener, Course, courseInstances } from "./logic";
+import { ballSize, GameState, MaterialType, maxPower, goalSize, ActionListener, Course, courseInstances, GameActions } from "./logic";
 import { ASSETS } from "./lib/assets";
-import { PlayerId, Players } from "rune-games-sdk";
+import { OnChangeParams, PlayerId, Players } from "rune-games-sdk";
 import { translations } from "./translates";
 
 const nthStrings = [
@@ -373,7 +373,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     }
 
     // notification of a new game state from the Rune SDK
-    gameUpdate(update: GameUpdate): void {
+    gameUpdate(update: OnChangeParams<GameState, GameActions, false>): void {
         this.game = update.game;
         this.localPlayerId = update.yourPlayerId;
         this.players = update.players;

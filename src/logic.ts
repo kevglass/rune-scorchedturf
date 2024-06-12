@@ -1,4 +1,4 @@
-import type { OnChangeAction, OnChangeEvent, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
+import type { GameOverResult, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
 import { physics, xml } from "toglib/logic";
 import { ASSETS } from "./lib/rawassets";
 
@@ -262,20 +262,7 @@ export interface GameState {
   // course: Course;
 }
 
-// Quick type so I can pass the complex object that is the 
-// Rune onChange blob around without ugliness. 
-export type GameUpdate = {
-  game: GameState;
-  action?: OnChangeAction<GameActions>;
-  event?: OnChangeEvent;
-  yourPlayerId: PlayerId | undefined;
-  players: Players;
-  rollbacks: OnChangeAction<GameActions>[];
-  previousGame: GameState;
-  futureGame?: GameState;
-};
-
-type GameActions = {
+export type GameActions = {
   shoot: (params: { dx: number, dy: number, power: number }) => void;
   reachedGoal: (params: { playerId: string, courseId: number }) => void;
   dragUpdate: (params: { powerDragging: boolean, px: number, py: number, power: number }) => void;
@@ -301,7 +288,10 @@ function nextTurn(state: GameState): void {
         type: "gameOver",
       });
       state.gameOver = true;
-      Rune.gameOver();
+      const winner = state.players.sort((a, b) => a.totalShots - b.totalShots)[0];
+      const result: Record<PlayerId, GameOverResult> = {};
+      state.players.forEach(p => result[p.playerId] = p === winner ? "WON" : "LOST");
+      Rune.gameOver({ minimizePopUp: true, players: result});
     } else {
       state.nextCourseAt = Rune.gameTime() + 4000;
     }
@@ -438,6 +428,7 @@ Rune.initLogic({
     },
   },
   updatesPerSecond: 30,
+  landscape: true,
   update: (context) => {
     context.game.startGame = false;
     context.game.frameCount++;
