@@ -1,4 +1,4 @@
-import type { GameOverResult, PlayerId, Players, RuneClient } from "rune-games-sdk/multiplayer"
+import type { GameOverResult, PlayerId, RuneClient } from "rune-games-sdk/multiplayer"
 import { physics, xml } from "toglib/logic";
 import { ASSETS } from "./lib/rawassets";
 
