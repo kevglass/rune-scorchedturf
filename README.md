@@ -6,6 +6,8 @@ A game using the Rune SDK to play multiplayer 2d gravity based golf. This isn't 
 
 _All game assets are licensed for use in these projects. They remain copyright of their authors._
 
+_You can find the rest of my rune games here https://github.com/kevglass/rune-games_
+
 ## How to Play
 
 * Wait for your turn
