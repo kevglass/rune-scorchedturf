@@ -1,4 +1,4 @@
-import type { GameOverResult, PlayerId, RuneClient } from "rune-games-sdk/multiplayer"
+import type { GameOverResult, PlayerId, DuskClient } from "dusk-games-sdk"
 import { physics, xml } from "toglib/logic";
 import { ASSETS } from "./lib/rawassets";
 
@@ -270,7 +270,7 @@ export type GameActions = {
 }
 
 declare global {
-  const Rune: RuneClient<GameState, GameActions>
+  const Dusk: DuskClient<GameState, GameActions>
 }
 
 function nextTurn(state: GameState): void {
@@ -291,9 +291,9 @@ function nextTurn(state: GameState): void {
       const winner = state.players.sort((a, b) => a.totalShots - b.totalShots)[0];
       const result: Record<PlayerId, GameOverResult> = {};
       state.players.forEach(p => result[p.playerId] = p === winner ? "WON" : "LOST");
-      Rune.gameOver({ minimizePopUp: true, players: result});
+      Dusk.gameOver({ minimizePopUp: true, players: result});
     } else {
-      state.nextCourseAt = Rune.gameTime() + 4000;
+      state.nextCourseAt = Dusk.gameTime() + 4000;
     }
     return;
   }
@@ -347,7 +347,7 @@ function startCourse(game: GameState, course: Course): void {
   game.events.push({
     id: game.nextId++,
     type: "newCourse",
-    gameTime: Rune.gameTime(),
+    gameTime: Dusk.gameTime(),
     courseNumber: game.courseNumber
   } as NewCourseEvent);
   game.completed = [];
@@ -366,9 +366,10 @@ function startCourse(game: GameState, course: Course): void {
   game.whoseTurn = game.players[0].playerId;
 }
 
-Rune.initLogic({
+Dusk.initLogic({
   minPlayers: 1,
   maxPlayers: 6,
+  reactive: false,
   setup: (allPlayerIds: PlayerId[]): GameState => {
     const course = loadCourse(courses[0]);
     const initialState: GameState = {
@@ -432,7 +433,7 @@ Rune.initLogic({
   update: (context) => {
     context.game.startGame = false;
     context.game.frameCount++;
-    context.game.gameTime = Rune.gameTime();
+    context.game.gameTime = Dusk.gameTime();
 
     // 1484.0000032782555 (per frame= 5.936000013113022)
     // if (context.game.frameCount < 250) {
@@ -448,14 +449,14 @@ Rune.initLogic({
       // console.log(totalTime + " (per frame= " + (totalTime / context.game.frameCount) +")");
     }
 
-    if (context.game.nextTurnAt !== 0 && Rune.gameTime() > context.game.nextTurnAt) {
+    if (context.game.nextTurnAt !== 0 && Dusk.gameTime() > context.game.nextTurnAt) {
       nextTurn(context.game);
       context.game.nextTurnAt = 0;
     } else if (context.game.whoseTurn && !context.allPlayerIds.includes(context.game.whoseTurn)) {
       nextTurn(context.game);
     }
 
-    if (context.game.nextCourseAt !== 0 && Rune.gameTime() > context.game.nextCourseAt) {
+    if (context.game.nextCourseAt !== 0 && Dusk.gameTime() > context.game.nextCourseAt) {
       context.game.nextCourseAt = 0;
       loadNextCourse(context.game);
     }
@@ -493,7 +494,7 @@ Rune.initLogic({
     },
     endTurn: (params, context) => {
       if (context.game.whoseTurn === context.playerId) {
-        context.game.nextTurnAt = Rune.gameTime() + 1000;
+        context.game.nextTurnAt = Dusk.gameTime() + 1000;
       }
     }
   },
