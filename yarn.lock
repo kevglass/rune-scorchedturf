@@ -915,7 +915,7 @@ eslint-plugin-react-refresh@^0.3.4:
   resolved "https://registry.npmjs.org/eslint-plugin-react-refresh/-/eslint-plugin-react-refresh-0.3.5.tgz"
   integrity sha512-61qNIsc7fo9Pp/mju0J83kzvLm0Bsayu7OQSLEoJxLDCBjIIyb87bkzufoOvdDxLkSlMfkF7UxomC4+eztUBSA==
 
-eslint-plugin-rune@^1.0.1:
+eslint-plugin-rune@2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/eslint-plugin-rune/-/eslint-plugin-rune-2.0.3.tgz#e944dcf3342ff887a018322c1bced02f4701e13f"
   integrity sha512-cpLhuBqq3jQeEj5dUi3PpWxH2qnWylTfvVC5M5oHCuAhfmHqOnN3DvhjO8pOk2FAe4mqJZh/M+R5/HYrsoyErA==
@@ -1504,6 +1504,11 @@ progress@^2.0.0:
   resolved "https://registry.npmjs.org/progress/-/progress-2.0.3.tgz"
   integrity sha512-7PiHtLll5LdnKIMw100I+8xJXR5gW2QwWYkT6iJva0bXitZKa/XMrSbdmg3r2Xnaidz9Qumd0VPaMrZlF9V9sA==
 
+propel-js@1.0.22:
+  version "1.0.22"
+  resolved "https://registry.yarnpkg.com/propel-js/-/propel-js-1.0.22.tgz#ff21eb9c85f9ca3f0f1d76fc8e2452fc0dee2c31"
+  integrity sha512-4Wx+6ZupjfEsJBQWNrwexUtZguVdF3UeSFOL06Jx3O1PgOphP2cpNwI6eS83W0/+vO58DFc415/s7qfTXJi8GQ==
+
 punycode@^2.1.0:
   version "2.3.1"
   resolved "https://registry.npmjs.org/punycode/-/punycode-2.3.1.tgz"
@@ -1712,8 +1717,10 @@ to-regex-range@^5.0.1:
   dependencies:
     is-number "^7.0.0"
 
-"toglib@file:../togl":
-  version "1.1.3"
+toglib@1.2.3:
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/toglib/-/toglib-1.2.3.tgz#221eb59102e8a7bc454934dc30c73e57d0882ab9"
+  integrity sha512-fJM8MPO0Dyd8PGj1L1gUOwhp66gZCKSL8sToQ1pdN+5QyKC8zltyzP9RohG8sj27vE+pzybw8MrZPz0sHTLzhw==
   dependencies:
     potpack "^2.0.0"
     typescript "^5.3.3"

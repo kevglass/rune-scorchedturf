@@ -1,4 +1,5 @@
-import { graphics, physics, sound, translate } from "toglib";
+import { graphics, sound, translate } from "toglib";
+import { physics } from "propel-js"
 import { ballSize, GameState, MaterialType, maxPower, goalSize, ActionListener, Course, courseInstances, GameActions } from "./logic";
 import { ASSETS } from "./lib/assets";
 import { OnChangeParams, PlayerId, Players } from "rune-sdk";
@@ -295,7 +296,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     const bodyB = physics.enabledBodies(this.course.world).find(b => b.id === collision.bodyBId);
                     for (const body of [bodyA, bodyB]) {
                         if (body?.data?.originalBounds) {
-                            body.bounds = body.data.originalBounds * 1.25;
+                            body.shapes[0].bounds = body.data.originalBounds * 1.25;
                             if (!body.data?.deflate) {
                                 const other = body === bodyA ? bodyB : bodyA;
                                 if (other && !other.static) {
@@ -317,7 +318,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     if (body.data) {
                         if (body.data.deflate && body.data.deflate < Rune.gameTime()) {
                             delete body.data.deflate;
-                            body.bounds = body.data.originalBounds;
+                            body.shapes[0].bounds = body.data.originalBounds;
                         }
                     }
 
@@ -335,7 +336,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
 
                 for (const body of [...this.course.world.dynamicBodies]) {
                     const distanceToGoal = physics.lengthVec2(physics.subtractVec2(this.course.goal, body.center));
-                    if (distanceToGoal < body.bounds + goalSize) {
+                    if (distanceToGoal < body.shapes[0].bounds + goalSize) {
                         sound.playSound(this.sfxHole);
                         this.completed.push(body.data.playerId);
                         physics.removeBody(this.course.world, body);
@@ -942,7 +943,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 graphics.translate(body.center.x, body.center.y);
                 graphics.rotate(Math.floor(body.angle * 10) / 10);
 
-                if (body.type === physics.ShapeType.CIRCLE) {
+                if (body.shapes[0].type === physics.ShapeType.CIRCLE) {
                     if (body.data.sprite) {
                         const image = this.elements[body.data.sprite];
                         if (image) {
@@ -960,10 +961,10 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 graphics.translate(body.center.x, body.center.y);
                 graphics.rotate(Math.floor(body.angle * 10) / 10);
 
-                if (body.type === physics.ShapeType.RECTANGLE) {
+                if (body.shapes[0].type === physics.ShapeType.RECTANGLE) {
                     if (body.data.type === MaterialType.WATER) {
-                        const width = body.width + 2;
-                        const height = body.height + 2;
+                        const width = body.shapes[0].width + 2;
+                        const height = body.shapes[0].height + 2;
                         const tileset = this.materials[body.data.type as MaterialType].rect;
                         this.threePatch(tileset, -width / 2, -height / 2, width, height + 10); // account for shadow
                     }
@@ -984,11 +985,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 graphics.translate(body.center.x, body.center.y);
                 graphics.rotate(Math.floor(body.angle * 10) / 10);
 
-                if (body.type === physics.ShapeType.CIRCLE) {
+                if (body.shapes[0].type === physics.ShapeType.CIRCLE) {
                     if (body.data.sprite) {
                         // drawn on the background layer
                     } else {
-                        const size = bigPlayers ? body.bounds * 2 : body.bounds + 1;
+                        const size = bigPlayers ? body.shapes[0].bounds * 2 : body.shapes[0].bounds + 1;
                         if (body.data && body.data.playerId) {
                             const player = game.players.find(p => p.playerId === body.data.playerId);
                             let type = 5;
@@ -1010,8 +1011,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                         graphics.alpha(0.5);
                     }
 
-                    const width = body.width + 2;
-                    const height = body.height + 2;
+                    const width = body.shapes[0].width + 2;
+                    const height = body.shapes[0].height + 2;
                     const tileset = this.materials[body.data.type as MaterialType].rect;
                     this.threePatch(tileset, -width / 2, -height / 2, width, height + 3); // account for shadow
 

@@ -1,5 +1,6 @@
 import type { GameOverResult, PlayerId, RuneClient } from "rune-sdk"
-import { physics, xml } from "toglib/logic";
+import { xml } from "toglib/logic";
+import { physics } from "propel-js";
 import { ASSETS } from "./lib/rawassets";
 
 export const ballSize = 18;
@@ -100,7 +101,7 @@ function parseSVGTransform(a: any) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyBodyLogic(element: any, world: physics.World, body: physics.Body): void {
   if (body.data.type === MaterialType.BOUNCER) {
-    body.data.originalBounds = body.bounds;
+    body.data.originalBounds = body.shapes[0].bounds;
   }
   if (element.class === "spin") {
     const pin = physics.createCircle(world, physics.newVec2(body.center.x, body.center.y), 0, 0, 1, 0.5);
