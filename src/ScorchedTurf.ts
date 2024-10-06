@@ -1,7 +1,7 @@
 import { graphics, physics, sound, translate } from "toglib";
 import { ballSize, GameState, MaterialType, maxPower, goalSize, ActionListener, Course, courseInstances, GameActions } from "./logic";
 import { ASSETS } from "./lib/assets";
-import { OnChangeParams, PlayerId, Players } from "dusk-games-sdk";
+import { OnChangeParams, PlayerId, Players } from "rune-sdk";
 import { translations } from "./translates";
 
 const nthStrings = [
@@ -303,7 +303,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                                     other.velocity = physics.addVec2(other.velocity, physics.scaleVec2(physics.normalize(vec), 300));
                                 }
                             }
-                            body.data.deflate = Dusk.gameTime() + 1000;
+                            body.data.deflate = Rune.gameTime() + 1000;
                         }
                     }
                 }
@@ -315,7 +315,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 let ballMoving = false;
                 for (const body of physics.enabledBodies(this.course.world)) {
                     if (body.data) {
-                        if (body.data.deflate && body.data.deflate < Dusk.gameTime()) {
+                        if (body.data.deflate && body.data.deflate < Rune.gameTime()) {
                             delete body.data.deflate;
                             body.bounds = body.data.originalBounds;
                         }
@@ -340,7 +340,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                         this.completed.push(body.data.playerId);
                         physics.removeBody(this.course.world, body);
                         setTimeout(() => {
-                            Dusk.actions.reachedGoal({ playerId: body.data.playerId, courseId: this.courseNumber })
+                            Rune.actions.reachedGoal({ playerId: body.data.playerId, courseId: this.courseNumber })
                         }, 1);
                         this.lastSink = {
                             playerId: body.data.playerId,
@@ -367,7 +367,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         if (Date.now() - this.lastDragUpdate > 250) {
             this.lastDragUpdate = Date.now();
             setTimeout(() => {
-                Dusk.actions.dragUpdate({ powerDragging: this.powerDragging, px: this.px, py: this.py, power: this.power });
+                Rune.actions.dragUpdate({ powerDragging: this.powerDragging, px: this.px, py: this.py, power: this.power });
             }, 1);
         }
     }
@@ -432,10 +432,10 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                     }
                 }
             }
-            if (physics.atRest(this.world) && Dusk.gameTime() > this.changeTurnAt && this.changeTurnAt !== 0) {
+            if (physics.atRest(this.world) && Rune.gameTime() > this.changeTurnAt && this.changeTurnAt !== 0) {
                 if (update.game.whoseTurn === this.localPlayerId) {
                     this.changeTurnAt = 0;
-                    setTimeout(() => { if (this.world) { Dusk.actions.endTurn(); } }, 1);
+                    setTimeout(() => { if (this.world) { Rune.actions.endTurn(); } }, 1);
                 }
             }
 
@@ -564,8 +564,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
                 this.lastShot = Date.now();
                 this.showSpinner = false;
                 this.firstDrag = false;
-                Dusk.actions.shoot({ dx: -this.px / this.power, dy: -this.py / this.power, power: 150 + (this.power * 2) });
-                this.changeTurnAt = Dusk.gameTime() + 1000;
+                Rune.actions.shoot({ dx: -this.px / this.power, dy: -this.py / this.power, power: 150 + (this.power * 2) });
+                this.changeTurnAt = Rune.gameTime() + 1000;
             }
         }
         this.powerDragging = false;
@@ -585,7 +585,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
 
         // tell rune to let us know when a game
         // update happens
-        Dusk.initClient({
+        Rune.initClient({
             onChange: (update) => {
                 this.gameUpdate(update);
             },
