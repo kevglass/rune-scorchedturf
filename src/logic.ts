@@ -15,7 +15,7 @@ export const courses = [
   "course4.svg",
 ];
 
-type GameEvent = ShootEvent | GameOverEvent | NewCourseEvent;
+type GameEvent = ShootEvent | GameOverEvent | NewCourseEvent | SinkEvent | CollisionEvent
 
 export interface CommonEvent {
   id: number;
@@ -36,6 +36,16 @@ export interface NewCourseEvent extends CommonEvent {
 
 export interface GameOverEvent extends CommonEvent {
   type: "gameOver"
+}
+
+export interface SinkEvent extends CommonEvent {
+  type: "sink",
+  playerId: string
+}
+
+export interface CollisionEvent extends CommonEvent {
+  type: "collision",
+  maxDepth: number
 }
 
 export interface Course {
@@ -255,6 +265,12 @@ export interface GameState {
   totalPar: number;
   shotsThisCourse: number;
 
+  world: physics.World;
+  start: physics.Vector2;
+  goal: physics.Vector2;
+  par: number;
+  courseComplete: boolean;
+
   powerDragging: boolean;
   px: number;
   py: number;
@@ -265,13 +281,23 @@ export interface GameState {
 
 export type GameActions = {
   shoot: (params: { dx: number, dy: number, power: number }) => void;
-  reachedGoal: (params: { playerId: string, courseId: number }) => void;
   dragUpdate: (params: { powerDragging: boolean, px: number, py: number, power: number }) => void;
   endTurn: () => void;
 }
 
 declare global {
   const Rune: RuneClient<GameState, GameActions>
+}
+
+
+function applyShoot(world: physics.World, bodyId: number, dx: number, dy: number, power: number): void {
+  const body = world.dynamicBodies.find(b => b.id === bodyId);
+  if (body) {
+    body.velocity.x += (dx * power);
+    body.velocity.y += (dy * power)
+    body.data.initialX = body.center.x;
+    body.data.initialY = body.center.y;
+  }
 }
 
 function nextTurn(state: GameState): void {
@@ -292,7 +318,7 @@ function nextTurn(state: GameState): void {
       const winner = state.players.sort((a, b) => a.totalShots - b.totalShots)[0];
       const result: Record<PlayerId, GameOverResult> = {};
       state.players.forEach(p => result[p.playerId] = p === winner ? "WON" : "LOST");
-      Rune.gameOver({ minimizePopUp: true, players: result});
+      Rune.gameOver({ minimizePopUp: true, players: result });
     } else {
       state.nextCourseAt = Rune.gameTime() + 4000;
     }
@@ -352,7 +378,11 @@ function startCourse(game: GameState, course: Course): void {
     courseNumber: game.courseNumber
   } as NewCourseEvent);
   game.completed = [];
-
+  game.world = JSON.parse(JSON.stringify(course.world))
+  game.goal = course.goal;
+  game.start = course.start;
+  game.par = course.par;
+  game.courseComplete = false;
 
   for (const player of game.joinedPlayers) {
     if (!game.players.find(p => p.playerId === player)) {
@@ -388,27 +418,21 @@ Rune.initLogic({
       startGame: true,
       frameCount: 0,
       totalPar: 0,
-
       powerDragging: false,
       px: 0,
       py: 0,
       power: 0,
       shotsThisCourse: 0,
-
-      // course
+      world: course.world,
+      goal: course.goal,
+      start: course.start,
+      par: course.par,
+      courseComplete: false,
     }
 
     for (const player of allPlayerIds) {
       addPlayer(initialState, player);
     }
-
-    // for (const player of initialState.players) {
-    //   const ball = physics.createCircle(course.world, physics.newVec2(course.start.x + (initialState.players.indexOf(player) * 1), course.start.y), ballSize, 10, 1, 1);
-    //   ball.data = { playerId: player.playerId };
-    //   physics.addBody(course.world, ball);
-    //   ball.velocity.x = 500;
-    //   ball.velocity.y = -300;
-    // }
 
     nextTurn(initialState);
     startCourse(initialState, course);
@@ -436,19 +460,108 @@ Rune.initLogic({
     context.game.frameCount++;
     context.game.gameTime = Rune.gameTime();
 
-    // 1484.0000032782555 (per frame= 5.936000013113022)
-    // if (context.game.frameCount < 250) {
-    //   const before = performance.now();
-    //   // physics.worldStep(15, context.game.course.world);
-    //   // physics.worldStep(15, context.game.course.world);
-    //   const after = performance.now();
-    //   // eslint-disable-next-line rune/no-global-scope-mutation
-    //   totalTime += (after - before);
-    // }
+    if (context.game.whoseTurn && !context.game.gameOver && !context.game.completed.includes(context.game.whoseTurn)) {
+      const player = context.game.players.find(p => p.playerId === context.game.whoseTurn);
+      if (player && !context.game.world.dynamicBodies.find(b => b.data?.playerId === player.playerId) && !context.game.completed.includes(player.playerId)) {
+        const ball = physics.createCircle(context.game.world, physics.newVec2(context.game.start.x + (context.game.players.indexOf(player) * 1), context.game.start.y), ballSize, 10, 1, 1);
+        ball.data = { playerId: player.playerId };
+        physics.addBody(context.game.world, ball);
+      }
 
-    if (context.game.frameCount === 250) {
-      // console.log(totalTime + " (per frame= " + (totalTime / context.game.frameCount) +")");
+      if (player) {
+        const ball = context.game.world.dynamicBodies.find(b => b.data?.playerId === player.playerId)
+        if (ball) {
+          ball.data.outOfBounds = false
+        }
+      }
     }
+
+    // fake update to make it feel right
+    const firstSet = physics.worldStep(30, context.game.world)
+    const secondSet = physics.worldStep(30, context.game.world);
+
+    for (const collision of [...firstSet, ...secondSet]) {
+      const bodyA = physics.enabledBodies(context.game.world).find(b => b.id === collision.bodyAId);
+      const bodyB = physics.enabledBodies(context.game.world).find(b => b.id === collision.bodyBId);
+      for (const body of [bodyA, bodyB]) {
+        if (body?.data?.originalBounds) {
+          body.shapes[0].bounds = body.data.originalBounds * 1.25;
+          if (!body.data?.deflate) {
+            const other = body === bodyA ? bodyB : bodyA;
+            if (other && !other.static) {
+              const vec = physics.subtractVec2(other.center, body.center);
+              other.velocity = physics.addVec2(other.velocity, physics.scaleVec2(physics.normalize(vec), 300));
+            }
+          }
+          body.data.deflate = Rune.gameTime() + 1000;
+        }
+      }
+    }
+    if (firstSet.length > 0 || secondSet.length > 0) {
+      const maxDepth = Math.max(...firstSet.map(c => c.depth), ...secondSet.map(c => c.depth));
+
+      const event: CollisionEvent = {
+        id: context.game.nextId++,
+        maxDepth,
+        type: "collision",
+      }
+      context.game.events.push(event)
+    }
+
+    let ballMoving = false;
+    for (const body of physics.enabledBodies(context.game.world)) {
+      if (body.data) {
+        if (body.data.deflate && body.data.deflate < Rune.gameTime()) {
+          delete body.data.deflate;
+          body.shapes[0].bounds = body.data.originalBounds;
+        }
+      }
+
+      // theres a ball still moving
+      if (body.data.playerId && !body.static && body.restingTime < 1) {
+        ballMoving = true;
+      }
+    }
+
+    if (!ballMoving) {
+      for (let i = 0; i < 5; i++) {
+        physics.worldStep(30, context.game.world);
+      }
+    }
+
+    for (const body of [...context.game.world.dynamicBodies]) {
+      const distanceToGoal = physics.lengthVec2(physics.subtractVec2(context.game.goal, body.center));
+      if (distanceToGoal < body.shapes[0].bounds + goalSize) {
+        context.game.completed.push(body.data.playerId);
+        physics.removeBody(context.game.world, body);
+        const event: SinkEvent = {
+          id: context.game.nextId++,
+          playerId: body.data.playerId,
+          type: "sink",
+        }
+        context.game.events.push(event)
+      }
+    }
+    for (const body of context.game.world.dynamicBodies) {
+      if (body.center.y > physics.getWorldBounds(context.game.world, true).max.y + 100) {
+        body.velocity.x = 0;
+        body.velocity.y = 0;
+        body.shapes[0].center.x = body.center.x = body.averageCenter.x = body.centerOfPhysics.x = body.data.initialX;
+        body.shapes[0].center.y = body.center.y = body.averageCenter.y = body.centerOfPhysics.y = body.data.initialY;
+        body.data.outOfBounds = true
+      }
+    }
+
+    // if the world is at rest remove any bodies that should be 
+    // there because players left
+    for (const body of context.game.world.dynamicBodies.filter(b => b.data.playerId)) {
+      const expectedId = body.data.playerId;
+      if (!context.game.players.find(p => p.playerId === expectedId)) {
+        // player has left the game
+        physics.removeBody(context.game.world, body);
+      }
+    }
+    context.game.courseComplete = context.game.completed.length == context.game.players.length
 
     if (context.game.nextTurnAt !== 0 && Rune.gameTime() > context.game.nextTurnAt) {
       nextTurn(context.game);
@@ -469,11 +582,6 @@ Rune.initLogic({
       context.game.py = params.py;
       context.game.power = params.power;
     },
-    reachedGoal: (params: { playerId: string, courseId: number }, context) => {
-      if (params.courseId === context.game.courseNumber) {
-        context.game.completed.push(params.playerId);
-      }
-    },
     shoot: (params: { dx: number, dy: number, power: number }, context) => {
       const player = context.game.players?.find(p => p.playerId === context.playerId);
       if (player) {
@@ -481,6 +589,10 @@ Rune.initLogic({
         player.totalShots++;
         context.game.shotsThisCourse++;
 
+        const body = context.game.world.dynamicBodies.find(b => b.data?.playerId === context.playerId);
+        if (body) {
+          applyShoot(context.game.world, body.id, params.dx, params.dy, params.power);
+        }
         const event: ShootEvent = {
           id: context.game.nextId++,
           playerId: context.playerId,

@@ -1504,10 +1504,8 @@ progress@^2.0.0:
   resolved "https://registry.npmjs.org/progress/-/progress-2.0.3.tgz"
   integrity sha512-7PiHtLll5LdnKIMw100I+8xJXR5gW2QwWYkT6iJva0bXitZKa/XMrSbdmg3r2Xnaidz9Qumd0VPaMrZlF9V9sA==
 
-propel-js@1.0.22:
-  version "1.0.22"
-  resolved "https://registry.yarnpkg.com/propel-js/-/propel-js-1.0.22.tgz#ff21eb9c85f9ca3f0f1d76fc8e2452fc0dee2c31"
-  integrity sha512-4Wx+6ZupjfEsJBQWNrwexUtZguVdF3UeSFOL06Jx3O1PgOphP2cpNwI6eS83W0/+vO58DFc415/s7qfTXJi8GQ==
+propel-js@../propel-js:
+  version "1.0.24"
 
 punycode@^2.1.0:
   version "2.3.1"
@@ -1570,10 +1568,10 @@ run-parallel@^1.1.9:
   dependencies:
     queue-microtask "^1.2.2"
 
-rune-sdk@^4.22.1:
-  version "4.24.0"
-  resolved "https://registry.npmjs.org/rune-sdk/-/rune-sdk-4.24.0.tgz"
-  integrity sha512-wU0HvIIoTSAsY+nEGLk1xOpilh5U6+l1vETeR53wZMyaRg8DVhkuxbPwplD/f0K1Efvf991Ehfb1XsNfLSVQzA==
+rune-sdk@4.25.2:
+  version "4.25.2"
+  resolved "https://registry.yarnpkg.com/rune-sdk/-/rune-sdk-4.25.2.tgz#3ec923bd1c188b261654f309a023d23d974be26b"
+  integrity sha512-SwpTN1H8Xi7hm+dLcfiFnPRMcy+469xY9tMvM2Y6d2+0YaIwKA5YSi9BHnLc+ZoN0x/Bl5PZnZgPytJBGwmmog==
   dependencies:
     "@eslint/eslintrc" "^3.1.0"
     "@eslint/js" "^9.7.0"

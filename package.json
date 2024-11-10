@@ -15,8 +15,8 @@
   "dependencies": {
     "jsondiffpatch": "^0.6.0",
     "microdiff": "^1.3.2",
-    "propel-js": "1.0.22",
-    "rune-sdk": "^4.22.1",
+    "propel-js": "../propel-js",
+    "rune-sdk": "4.25.2",
     "toglib": "1.2.3"
   },
   "devDependencies": {
