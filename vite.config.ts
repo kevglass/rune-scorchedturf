@@ -14,9 +14,4 @@ export default defineConfig({
     include: ['toglib', "toglib/logic", "propel-js"],
   },
   assetsInclude: ["**/*.svg"],
-  build: {
-    commonjsOptions: {
-      include: [/toglib/, /propel-js/],
-    },
-  },
 })

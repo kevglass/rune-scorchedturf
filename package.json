@@ -7,7 +7,7 @@
     "dev": "vite --force --host",
     "typecheck": "tsc --noEmit",
     "build": "npm run lint && tsc && vite build",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives",
+    "lint": "eslint src",
     "preview": "vite preview",
     "deploy": "npm run build && rune upload --name 'Scorched Turf'",
     "upload": "npm run build && npx rune-games-cli@latest upload"
@@ -25,13 +25,17 @@
     "@typescript-eslint/eslint-plugin": "^5.57.1",
     "@typescript-eslint/parser": "^5.57.1",
     "@vitejs/plugin-react": "^4.0.0",
-    "eslint": "7.22.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.3.4",
     "eslint-plugin-rune": "2.0.3",
     "typescript": "^5.0.2",
     "vite": "^4.3.2",
     "vite-plugin-qrcode": "^0.2.2",
-    "vite-plugin-rune": "^1.0.0"
+    "vite-plugin-rune": "^1.0.0",
+    "@eslint/js": "^9.7.0",
+    "eslint": "^9.7.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "typescript-eslint": "^8.11.0"
   }
 }
