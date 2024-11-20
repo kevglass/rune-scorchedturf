@@ -2,6 +2,7 @@ import type { GameOverResult, PlayerId, RuneClient } from "rune-sdk"
 import { xml } from "toglib/logic"
 import { physics } from "propel-js"
 import { ASSETS } from "./lib/rawassets"
+import { MANIA_MODE } from "./gamemode"
 
 export const ballSize = 18
 export const maxPower = 200
@@ -359,6 +360,7 @@ function nextTurn(state: GameState): void {
   const possible = state.players.filter(
     (p) => !state.completed.includes(p.playerId)
   )
+
   if (possible.length === 0) {
     if (state.courseNumber >= courses.length - 1) {
       state.events.push({
@@ -522,37 +524,39 @@ Rune.initLogic({
       !context.game.gameOver &&
       !context.game.completed.includes(context.game.whoseTurn)
     ) {
-      const player = context.game.players.find(
-        (p) => p.playerId === context.game.whoseTurn
-      )
-      if (
-        player &&
-        !context.game.world.dynamicBodies.find(
-          (b) => b.data?.playerId === player.playerId
-        ) &&
-        !context.game.completed.includes(player.playerId)
-      ) {
-        const ball = physics.createCircle(
-          context.game.world,
-          physics.newVec2(
-            context.game.start.x + context.game.players.indexOf(player) * 1,
-            context.game.start.y
-          ),
-          ballSize,
-          10,
-          1,
-          1
-        )
-        ball.data = { playerId: player.playerId }
-        physics.addBody(context.game.world, ball)
-      }
+      for (const player of context.game.players) {
+        if (player.playerId !== context.game.whoseTurn && !MANIA_MODE) {
+          continue
+        }
+        if (
+          player &&
+          !context.game.world.dynamicBodies.find(
+            (b) => b.data?.playerId === player.playerId
+          ) &&
+          !context.game.completed.includes(player.playerId)
+        ) {
+          const ball = physics.createCircle(
+            context.game.world,
+            physics.newVec2(
+              context.game.start.x + context.game.players.indexOf(player) * 1,
+              context.game.start.y
+            ),
+            ballSize,
+            10,
+            1,
+            1
+          )
+          ball.data = { playerId: player.playerId }
+          physics.addBody(context.game.world, ball)
+        }
 
-      if (player) {
-        const ball = context.game.world.dynamicBodies.find(
-          (b) => b.data?.playerId === player.playerId
-        )
-        if (ball) {
-          ball.data.outOfBounds = false
+        if (player) {
+          const ball = context.game.world.dynamicBodies.find(
+            (b) => b.data?.playerId === player.playerId
+          )
+          if (ball) {
+            ball.data.outOfBounds = false
+          }
         }
       }
     }
@@ -670,6 +674,9 @@ Rune.initLogic({
     context.game.courseComplete =
       context.game.completed.length == context.game.players.length
 
+    if (MANIA_MODE) {
+      nextTurn(context.game)
+    }
     if (
       context.game.nextTurnAt !== 0 &&
       Rune.gameTime() > context.game.nextTurnAt

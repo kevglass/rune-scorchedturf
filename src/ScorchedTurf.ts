@@ -14,6 +14,7 @@ import {
 import { ASSETS } from "./lib/assets"
 import { OnChangeParams, PlayerId, Players } from "rune-sdk"
 import { translations } from "./translates"
+import { MANIA_MODE } from "./gamemode"
 
 const nthStrings = ["th", "st", "nd", "rd", "th"]
 
@@ -126,6 +127,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
   lastShot = 0
 
   courseComplete = false
+  myBodyAtRest = false
 
   constructor() {
     graphics.init(graphics.RendererType.WEBGL, true, 2048, 10)
@@ -363,7 +365,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
       this.showSpinner = true
     }
 
-    if (update.game.whoseTurn === this.localPlayerId) {
+    if (update.game.whoseTurn === this.localPlayerId || MANIA_MODE) {
       this.sendDragUpdate()
     } else {
       this.powerDragging = update.game.powerDragging
@@ -379,7 +381,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         .map((b) => b.data.playerId)
         .filter((id) => !this.game?.completed.includes(id)).length === 1
     ) {
-      if (!this.game.completed.includes(this.whoseTurn)) {
+      if (!this.game.completed.includes(this.whoseTurn) || MANIA_MODE) {
         this.showSpinner = true
       }
     }
@@ -396,7 +398,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         Rune.gameTime() > this.changeTurnAt &&
         this.changeTurnAt !== 0
       ) {
-        if (update.game.whoseTurn === this.localPlayerId) {
+        if (update.game.whoseTurn === this.localPlayerId && !MANIA_MODE) {
           this.changeTurnAt = 0
           setTimeout(() => {
             if (this.world) {
@@ -406,18 +408,23 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         }
       }
 
-      const currentBody = this.world.dynamicBodies.find(
-        (p) => p.data.playerId === this.game?.whoseTurn
-      )
-      if (currentBody?.data.outOfBounds) {
-        this.outOfBoundsTimer = Date.now() + 2000
-        this.trail = []
-      }
+      for (const currentBody of this.world.dynamicBodies) {
+        if (!currentBody.data.playerId) {
+          continue
+        }
+        if (currentBody.data.playerId !== this.game?.whoseTurn && !MANIA_MODE) {
+          continue
+        }
+        if (currentBody?.data.outOfBounds) {
+          this.outOfBoundsTimer = Date.now() + 2000
+          this.trail = []
+        }
 
-      for (const p of [...this.trail]) {
-        p.life--
-        if (p.life <= 0) {
-          this.trail.splice(this.trail.indexOf(p))
+        for (const p of [...this.trail]) {
+          p.life--
+          if (p.life <= 0) {
+            this.trail.splice(this.trail.indexOf(p))
+          }
         }
       }
 
@@ -462,7 +469,10 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     this.sx = x
     this.sy = y
 
-    if (this.world && physics.atRest(this.world)) {
+    if (
+      this.world &&
+      (physics.atRest(this.world) || (this.myBodyAtRest && MANIA_MODE))
+    ) {
       this.dragging = true
       if (this.game && this.myTurn()) {
         const body = this.world.dynamicBodies.find(
@@ -470,8 +480,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         )
         if (body) {
           if (
-            body.data.playerId === this.game.whoseTurn &&
-            this.game.whoseTurn === this.localPlayerId
+            (body.data.playerId === this.game.whoseTurn &&
+              this.game.whoseTurn === this.localPlayerId) ||
+            (body.data.playerId === this.localPlayerId &&
+              MANIA_MODE &&
+              this.myBodyAtRest)
           ) {
             const dx = x - body.center.x
             const dy = y - body.center.y
@@ -495,6 +508,9 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
   }
 
   myTurn(): boolean {
+    if (MANIA_MODE) {
+      return true
+    }
     return (
       this.whoseTurn == this.localPlayerId &&
       this.game?.nextTurnAt == 0 &&
@@ -510,15 +526,22 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     x += Math.floor(this.cameraX)
     y += Math.floor(this.cameraY)
 
-    if (this.game && this.world && physics.atRest(this.world)) {
+    if (
+      this.game &&
+      this.world &&
+      (physics.atRest(this.world) || (this.myBodyAtRest && MANIA_MODE))
+    ) {
       if (this.powerDragging) {
         const body = this.world.dynamicBodies.find(
           (b) => b.data?.playerId === this.localPlayerId
         )
         if (body) {
           if (
-            body.data.playerId === this.game.whoseTurn &&
-            this.game.whoseTurn === this.localPlayerId
+            (body.data.playerId === this.game.whoseTurn &&
+              this.game.whoseTurn === this.localPlayerId) ||
+            (body.data.playerId === this.localPlayerId &&
+              MANIA_MODE &&
+              this.myBodyAtRest)
           ) {
             const dx = x - body.center.x
             const dy = y - body.center.y
@@ -686,9 +709,13 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
       graphics.push()
       this.vx = this.course.start.x
       this.vy = this.course.start.y
-      const body = this.world.dynamicBodies.find(
-        (b) => b.data.playerId === this.game?.whoseTurn
-      )
+      const body = MANIA_MODE
+        ? this.world.dynamicBodies.find(
+            (b) => b.data.playerId === this.localPlayerId
+          )
+        : this.world.dynamicBodies.find(
+            (b) => b.data.playerId === this.game?.whoseTurn
+          )
       if (!this.currentBody || (this.currentBody !== body && body)) {
         this.currentBody = body
       }
@@ -773,9 +800,25 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         flagHeight
       )
 
-      if (this.powerDragging && this.power > 30 && atRest) {
+      this.myBodyAtRest = false
+      const myBody = this.world.dynamicBodies.find((p) => {
+        return p.data.playerId === this.localPlayerId
+      })
+      if (MANIA_MODE) {
+        this.myBodyAtRest = (myBody && myBody.restingTime > 1) === true
+        if (this.myBodyAtRest) {
+          this.showSpinner = true
+        }
+        if (!myBody) {
+          this.showSpinner = false
+        }
+      }
+
+      if (this.powerDragging && this.power > 30 && (MANIA_MODE || atRest)) {
         const body = this.world.dynamicBodies.find(
-          (b) => b.data.playerId === this.game?.whoseTurn
+          (b) =>
+            b.data.playerId ===
+            (MANIA_MODE ? this.localPlayerId : this.game?.whoseTurn)
         )
         if (body) {
           if (body.data.playerId !== this.localPlayerId) {
@@ -843,8 +886,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
       } else {
         if (
           this.showSpinner &&
-          this.game.nextTurnAt === 0 &&
-          this.physicsAtRestTime() > 500 &&
+          ((this.game.nextTurnAt === 0 && this.physicsAtRestTime() > 500) ||
+            (MANIA_MODE && this.myBodyAtRest)) &&
           this.currentBody &&
           this.currentBody.data.playerId === this.localPlayerId
         ) {
@@ -907,7 +950,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     )
     graphics.pop()
 
-    if (this.players && this.game.whoseTurn) {
+    if (this.players && this.game.whoseTurn && !MANIA_MODE) {
       graphics.fillRect(
         0,
         graphics.height() - 60,
@@ -1019,7 +1062,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
       }
     }
 
-    if (this.outOfBoundsTimer > Date.now()) {
+    if (this.outOfBoundsTimer > Date.now() && !MANIA_MODE) {
       graphics.fillRect(0, 60, graphics.width(), 50, "rgba(0,0,0,0.5)")
       graphics.centerText("Out of Bounds!", 100, this.fontBigger)
     }
