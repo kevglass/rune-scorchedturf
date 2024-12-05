@@ -1,0 +1,1 @@
+echo "export const MANIA_MODE = $1" > src/gamemode.ts

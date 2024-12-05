@@ -15,6 +15,7 @@ import { ASSETS } from "./lib/assets"
 import { OnChangeParams, PlayerId, Players } from "rune-sdk"
 import { translations } from "./translates"
 import { MANIA_MODE } from "./gamemode"
+import { UIResources } from "./uiResources"
 
 const nthStrings = ["th", "st", "nd", "rd", "th"]
 
@@ -44,7 +45,11 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     { r: 204, g: 50, b: 50 },
   ]
   fontSmall!: graphics.GameFont
+  fontNormal!: graphics.GameFont
   fontBig!: graphics.GameFont
+  holeFont!: graphics.GameFont
+  topTitle!: graphics.GameFont
+  topTitleRed!: graphics.GameFont
   fontBigger!: graphics.GameFont
   playerBalls: graphics.GameImage[] = []
   background!: graphics.GameImage
@@ -129,6 +134,10 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
   courseComplete = false
   myBodyAtRest = false
 
+  ui: UIResources
+  playerAvatars: Record<string, graphics.GameImage> = {}
+  allPlayerIds: string[] = []
+
   constructor() {
     graphics.init(graphics.RendererType.WEBGL, true, 2048, 10)
 
@@ -136,15 +145,65 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     this.sfxHit = sound.loadSound(ASSETS["hit.mp3"])
     this.sfxHole = sound.loadSound(ASSETS["hole.mp3"])
 
-    this.fontSmall = graphics.generateFont(16, "white")
-    this.fontBig = graphics.generateFont(20, "white")
-    this.fontBigger = graphics.generateFont(28, "white")
+    this.fontSmall = graphics.generateFont(
+      12,
+      "#2FCC32",
+      graphics.DEFAULT_CHAR_SET,
+      "Roboto",
+      ""
+    )
+    this.fontNormal = graphics.generateFont(
+      14,
+      "white",
+      graphics.DEFAULT_CHAR_SET,
+      "Roboto",
+      ""
+    )
+    this.fontBig = graphics.generateFont(
+      20,
+      "white",
+      graphics.DEFAULT_CHAR_SET,
+      "Roboto"
+    )
+    this.holeFont = graphics.generateFont(
+      24,
+      "#C2FF24",
+      graphics.DEFAULT_CHAR_SET,
+      "Roboto"
+    )
+
+    this.topTitle = graphics.generateFont(
+      25,
+      [
+        { offset: 0.24, col: "#47FC0A" },
+        { offset: 0.68, col: "#C2FF24" },
+      ],
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ!",
+      "Snake"
+    )
+    this.topTitleRed = graphics.generateFont(
+      25,
+      [
+        { offset: 0.24, col: "#FC4B0A" },
+        { offset: 0.68, col: "#FF9924" },
+      ],
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ!",
+      "Snake"
+    )
+    this.fontBigger = graphics.generateFont(
+      42,
+      "#C2FF24",
+      graphics.DEFAULT_CHAR_SET,
+      "Roboto"
+    )
     this.arrow = graphics.loadImage(ASSETS["arrow.png"], true, "arrow", true)
     this.logo = graphics.loadImage(ASSETS["logo.png"])
     this.whiteCircle = graphics.loadImage(ASSETS["whitecircle.png"])
     this.spinRing = graphics.loadImage(ASSETS["spinring.png"])
     this.hand = graphics.loadImage(ASSETS["tap.png"])
     this.chain = graphics.loadImage(ASSETS["chain.png"])
+
+    this.ui = new UIResources()
 
     this.elements.tree1 = graphics.loadImage(
       ASSETS["elements/tree1.png"],
@@ -335,6 +394,15 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     this.players = update.players
     this.world = update.game.world
 
+    this.allPlayerIds = update.allPlayerIds
+
+    for (const id of update.allPlayerIds) {
+      if (!this.playerAvatars[id]) {
+        this.playerAvatars[id] = graphics.loadImage(
+          Rune.getPlayerInfo(id).avatarUrl
+        )
+      }
+    }
     for (const body of [...this.world.dynamicBodies]) {
       if (
         body == this.currentBody &&
@@ -950,182 +1018,328 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     )
     graphics.pop()
 
-    if (this.players && this.game.whoseTurn && !MANIA_MODE) {
-      graphics.fillRect(
-        0,
-        graphics.height() - 60,
-        graphics.width(),
-        60,
-        "rgba(0,0,0,0.5)"
+    let showingCompleteScreen = false
+    const showingEndScreen =
+      (this.gameOver || this.courseComplete) && this.game && this.players
+    const body = this.world.dynamicBodies.find(
+      (b) => b.data?.playerId === this.localPlayerId
+    )
+    const inPlay = body !== undefined
+
+    if (
+      (!MANIA_MODE || !inPlay) &&
+      this.players &&
+      this.lastSink &&
+      Date.now() - this.lastSink.time < (showingEndScreen ? 5000 : 3000)
+    ) {
+      const playerData = this.game.players.find(
+        (p) => p.playerId === this.lastSink?.playerId
       )
-      let message = this.players[this.game.whoseTurn].displayName
-      if (this.game.whoseTurn === this.localPlayerId) {
-        message = "Your Turn"
+
+      if (playerData) {
+        showingCompleteScreen = true
+        const sinceShown = Date.now() - this.lastSink.time
+        let a = 1
+        if (sinceShown > (showingEndScreen ? 4500 : 2500)) {
+          a = 1 - (sinceShown - (showingEndScreen ? 4500 : 2500)) / 500
+        }
+        graphics.alpha(a)
+
+        const width = 400
+        const height = (550 / this.ui.dialog.width) * this.ui.dialog.height
+        graphics.drawImage(
+          this.ui.dialog,
+          (graphics.width() - width) / 2,
+          (graphics.height() - height) / 2 + 35,
+          width,
+          height
+        )
+        let message = this.players[playerData.playerId].displayName
+        graphics.centerText(
+          message.toUpperCase(),
+          graphics.height() / 2 - 65,
+          this.holeFont
+        )
+        message = " gets a hole in " + playerData.shots + "!"
+        graphics.centerText(
+          message.toUpperCase(),
+          graphics.height() / 2 - 40,
+          this.holeFont
+        )
+
+        const outlineSize = 4
+        let parMessage = this.toParName(
+          this.course.par,
+          playerData.shots
+        ).toUpperCase()
+        let parFont = this.topTitle
+        if (showingEndScreen) {
+          if (this.gameOver) {
+            parMessage = "GAME OVER!"
+            parFont = this.topTitleRed
+          } else {
+            parMessage = "ALL DONE!"
+          }
+        }
+
+        for (let x = -outlineSize; x <= outlineSize; x += outlineSize) {
+          for (let y = -outlineSize; y <= outlineSize; y += outlineSize) {
+            graphics.push()
+            graphics.translate(x, y)
+            graphics.centerText(
+              parMessage,
+              graphics.height() / 2 - 100,
+              parFont,
+              "black"
+            )
+            graphics.pop()
+          }
+        }
+        graphics.centerText(
+          parMessage,
+          graphics.height() / 2 - 100,
+          parFont,
+          "#fff"
+        )
+
+        let i = 0
+        const size = 24
+        for (const player of this.game.players) {
+          graphics.drawImage(
+            this.ui.pill,
+            graphics.width() / 2 - 150,
+            graphics.height() / 2 - 20 + i * 32,
+            300,
+            30
+          )
+          graphics.drawImage(
+            this.playerAvatars[player?.playerId ?? ""] ?? this.playerBalls[0],
+            graphics.width() / 2 - 150 + 3,
+            graphics.height() / 2 - 20 + i * 32 + 3,
+            size,
+            size
+          )
+          graphics.drawText(
+            graphics.width() / 2 - 150 + 33,
+            graphics.height() / 2 - 20 + i * 32 + 21,
+            Rune.getPlayerInfo(player.playerId).displayName.toUpperCase(),
+            this.fontNormal
+          )
+
+          const score = player.shots - this.game.par
+          const scoreOffset = graphics.textWidth(
+            "(" + score + ")",
+            this.fontSmall
+          )
+          graphics.drawText(
+            graphics.width() / 2 + 140 - scoreOffset,
+            graphics.height() / 2 - 20 + i * 32 + 20,
+            "(" + score + ")",
+            this.fontSmall
+          )
+          graphics.drawText(
+            graphics.width() / 2 +
+              135 -
+              scoreOffset -
+              graphics.textWidth("" + player.shots, this.fontNormal),
+            graphics.height() / 2 - 20 + i * 32 + 21,
+            "" + player.shots,
+            this.fontNormal
+          )
+          i++
+        }
+        graphics.alpha(1)
       }
+    }
+
+    if (
+      !showingCompleteScreen &&
+      this.players &&
+      this.game.whoseTurn &&
+      !MANIA_MODE
+    ) {
       const player = this.game.players.find(
         (p) => p.playerId === this.game?.whoseTurn
       )
-      graphics.drawText(67, graphics.height() - 32, message, this.fontBig)
       if (
         player &&
         this.game?.nextTurnAt == 0 &&
         this.physicsAtRestTime() > 500
       ) {
-        message =
-          player.shots + 1 + nthStrings[Math.min(4, player.shots + 1)] + " shot"
-        graphics.drawText(69, graphics.height() - 14, message, this.fontSmall)
+        graphics.drawImage(
+          this.ui.bottomBarLeft,
+          14,
+          graphics.height() - 50,
+          36,
+          36
+        )
+        graphics.drawImage(
+          this.ui.bottomBarRight,
+          graphics.width() - 50,
+          graphics.height() - 50,
+          36,
+          36
+        )
+        graphics.drawImage(
+          this.ui.bottomBarMid,
+          50,
+          graphics.height() - 50,
+          graphics.width() - 100,
+          36
+        )
+        let message = this.players[this.game.whoseTurn].displayName
+        if (this.game.whoseTurn === this.localPlayerId) {
+          message = "Your"
+        }
+        message +=
+          " " +
+          (player.shots + 1) +
+          nthStrings[Math.min(4, player.shots + 1)] +
+          " shot"
+        graphics.drawText(
+          54,
+          graphics.height() - 26,
+          message.toUpperCase(),
+          this.fontNormal
+        )
+
+        const score = player.shots - this.game.par
+        graphics.drawText(
+          graphics.textWidth(message.toUpperCase(), this.fontNormal) + 60,
+          graphics.height() - 27,
+          "(" + score + ")",
+          this.fontSmall
+        )
+
+        let type = 5
+        let size = 14
+        if (player) {
+          type = player.playerType
+        }
+
+        graphics.drawImage(
+          this.playerAvatars[player?.playerId ?? ""] ?? this.playerBalls[type],
+          20,
+          graphics.height() - 32 - size,
+          size * 2,
+          size * 2
+        )
+        size = 7
+        graphics.drawImage(
+          this.playerBalls[type],
+          36,
+          graphics.height() - 40 - size,
+          size * 2,
+          size * 2
+        )
+
+        let x = graphics.width() - 70
+        size = 10
+        for (const otherPlayer of this.game.players) {
+          if (otherPlayer.playerId !== player.playerId) {
+            const score = otherPlayer.shots - this.game.par
+            graphics.drawText(
+              x + 25,
+              graphics.height() - 27,
+              "(" + score + ")",
+              this.fontSmall
+            )
+            graphics.drawImage(
+              this.playerAvatars[otherPlayer.playerId ?? ""] ??
+                this.playerBalls[type],
+              x,
+              graphics.height() - 33 - size,
+              size * 2,
+              size * 2
+            )
+            x -= 50
+          }
+        }
       }
-      let type = 5
-      const size = 20
-      if (player) {
-        type = player.playerType
-      }
-      graphics.drawImage(
-        this.playerBalls[type],
-        20,
-        graphics.height() - 33 - size,
-        size * 2,
-        size * 2
-      )
     }
 
     if (this.showTitle && this.game) {
       const sinceShown = Date.now() - this.showTitleTimer
       let a = 1
-      if (sinceShown > 2000) {
+      if (sinceShown > 3000) {
         this.showTitle = false
-      } else if (sinceShown > 1500) {
-        a = 1 - (sinceShown - 1500) / 500
+      } else if (sinceShown > 2500) {
+        a = 1 - (sinceShown - 2500) / 500
       }
       if (this.showTitle) {
+        const width = 400
+        const height =
+          (width / this.ui.levelStart.width) * this.ui.levelStart.height
         graphics.push()
-        graphics.translate(0, -100)
         graphics.alpha(a)
-        graphics.fillRect(
-          0,
-          graphics.height() / 2 - 70,
-          graphics.width(),
-          120,
-          "rgba(0,0,0,0.5)"
+        graphics.drawImage(
+          this.ui.levelStart,
+          (graphics.width() - width) / 2,
+          (graphics.height() - height) / 2,
+          width,
+          height
         )
-        graphics.centerText(
-          "Hole " + (this.courseNumber + 1),
-          graphics.height() / 2 - 40,
+        graphics.translate(0, -100)
+        graphics.drawText(
+          graphics.width() / 2 - 80,
+          graphics.height() / 2 + 145,
+          ("Hole " + (this.courseNumber + 1)).toUpperCase(),
           this.fontBig,
-          "#ddd"
+          "#fff"
         )
         graphics.centerText(
-          this.course.name,
-          graphics.height() / 2,
+          this.course.name.toUpperCase(),
+          graphics.height() / 2 + 110,
           this.fontBigger
         )
-        graphics.centerText(
-          "Par " + this.course.par,
-          graphics.height() / 2 + 35,
+        graphics.drawText(
+          graphics.width() / 2 + 20,
+          graphics.height() / 2 + 145,
+          ("Par " + this.course.par).toUpperCase(),
           this.fontBig,
-          "#ddd"
+          "#fff"
         )
+        const size = 40
+        const padding = 10
+        let x = graphics.width() / 2 - (this.allPlayerIds.length * size) / 2
+        for (const id of this.allPlayerIds) {
+          graphics.drawImage(
+            this.playerAvatars[id],
+            x + padding / 2,
+            graphics.height() / 2 + 185,
+            size - padding,
+            size - padding
+          )
+          x += size
+        }
         graphics.alpha(1)
         graphics.pop()
       }
     }
 
-    if (
-      this.players &&
-      this.lastSink &&
-      Date.now() - this.lastSink.time < 3000
-    ) {
-      const playerData = this.game.players.find(
-        (p) => p.playerId === this.lastSink?.playerId
-      )
-      if (playerData) {
-        const sinceShown = Date.now() - this.lastSink.time
-        let a = 1
-        if (sinceShown > 2500) {
-          a = 1 - (sinceShown - 2500) / 500
-        }
-        graphics.alpha(a)
-        graphics.fillRect(0, 10, graphics.width(), 45, "rgba(0,0,0,0.5)")
-        const message =
-          this.players[this.lastSink.playerId].displayName +
-          " gets a hole in " +
-          playerData.shots +
-          "!"
-        graphics.centerText(message, 28, this.fontSmall)
-        graphics.centerText(
-          "(" + this.toParName(this.course.par, playerData.shots) + ")",
-          48,
-          this.fontSmall,
-          "#ddd"
-        )
-        graphics.alpha(1)
-      }
-    }
-
     if (this.outOfBoundsTimer > Date.now() && !MANIA_MODE) {
-      graphics.fillRect(0, 60, graphics.width(), 50, "rgba(0,0,0,0.5)")
-      graphics.centerText("Out of Bounds!", 100, this.fontBigger)
-    }
-    if ((this.gameOver || this.courseComplete) && this.game && this.players) {
-      let y = 100
-      graphics.fillRect(0, y - 40, graphics.width(), 50, "rgba(0,0,0,0.5)")
-      graphics.centerText(
-        this.gameOver ? "Game Over!" : "All Done!",
-        y,
-        this.fontBigger
-      )
-      y += 50
-
-      for (const player of [...this.game.players].sort(
-        (a, b) => a.totalShots - b.totalShots
-      )) {
-        const name = this.players[player.playerId]?.displayName ?? ""
-        const score = player.totalShots
-
-        let type = 5
-        const size = 12
-        if (player) {
-          type = player.playerType
+      const outlineSize = 4
+      const parMessage = "OUT OF BOUNDS!"
+      const parFont = this.topTitleRed
+      for (let x = -outlineSize; x <= outlineSize; x += outlineSize) {
+        for (let y = -outlineSize; y <= outlineSize; y += outlineSize) {
+          graphics.push()
+          graphics.translate(x, y)
+          graphics.centerText(
+            parMessage,
+            graphics.height() / 2 - 100,
+            parFont,
+            "black"
+          )
+          graphics.pop()
         }
-
-        graphics.fillRect(0, y - 25, graphics.width(), 30, "rgba(0,0,0,0.5)")
-        graphics.drawImage(
-          this.playerBalls[type],
-          4,
-          2 + y - size * 2,
-          size * 2,
-          size * 2
-        )
-        graphics.drawText(35, y, name, this.fontBig)
-        graphics.drawText(
-          graphics.width() - 55 - graphics.textWidth("" + score, this.fontBig),
-          y,
-          "" + score,
-          this.fontBig
-        )
-        const difference = score - this.game.totalPar
-        const diffString = "(" + (difference >= 0 ? "+" : "") + difference + ")"
-        let col = "#aaaaaa"
-        if (difference > 0) {
-          col = "#bb2905"
-        }
-        if (difference < 0) {
-          col = "#7da004"
-        }
-
-        graphics.fillRect(graphics.width() - 45, y - 22, 42, 25, col)
-        graphics.drawText(
-          graphics.width() -
-            44 +
-            Math.floor(
-              (42 - graphics.textWidth(diffString, this.fontSmall)) / 2
-            ),
-          y - 4,
-          diffString,
-          this.fontSmall
-        )
-        y += 35
       }
+      graphics.centerText(
+        parMessage,
+        graphics.height() / 2 - 100,
+        parFont,
+        "#fff"
+      )
     }
   }
 

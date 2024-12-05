@@ -6,6 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1" />
   <title>Scorched Turf</title>
   <style>
+    @font-face {
+      font-family: "Roboto";
+      src: url("src/assets/fonts/RobotoCondensed-VariableFont_wght.ttf");
+    }
+    @font-face {
+      font-family: "Snake";
+      src: url("src/assets/fonts/Snake\ in\ the\ Boot.ttf");
+    }
     html {
       background: #251b1b;
     }
@@ -30,6 +38,10 @@
       width: 100%;
       height: 100%;
       image-rendering: pixelated;
+      position: absolute;
+      z-index: 10;
+      top: 0;
+      left: 0;
     }
 
     #gamecanvas:focus {
@@ -44,10 +56,20 @@
       width: 150px;
       height: 150px;
     }
+
+    .roboto {
+      font-family: "Roboto";
+    }
+    .snake {
+      font-family: "Snake";
+    }
   </style>
 </head>
 
 <body>
+  <div class="roboto">Test</div>
+  <div class="snake">Test</div>
+
   <canvas id="gamecanvas"></canvas>
   <script type="module" src="/src/logic.ts"></script>
   <script type="module" src="/src/main.ts"></script>
