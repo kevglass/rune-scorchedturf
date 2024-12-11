@@ -47,6 +47,11 @@ export const selectCourses: SelectCourse[] = [
   },
 ]
 
+export type PersistedState = {
+  scores: number[]
+  pars: number[]
+}
+
 type GameEvent =
   | ShootEvent
   | GameOverEvent
@@ -353,6 +358,7 @@ export interface GameState {
   selectedCourse: number
   selectedHole: number
   // course: Course;
+  persisted?: Record<string, PersistedState>
 }
 
 export type GameActions = {
@@ -368,7 +374,7 @@ export type GameActions = {
 }
 
 declare global {
-  const Rune: RuneClient<GameState, GameActions>
+  const Rune: RuneClient<GameState, GameActions, PersistedState>
 }
 
 function applyShoot(
@@ -498,6 +504,7 @@ function startCourse(game: GameState, course: Course): void {
 Rune.initLogic({
   minPlayers: 1,
   maxPlayers: 6,
+  persistPlayerData: true,
   reactive: false,
   setup: (allPlayerIds: PlayerId[]): GameState => {
     const course = loadCourse(courses[0])
@@ -675,6 +682,34 @@ Rune.initLogic({
           type: "sink",
         }
         context.game.events.push(event)
+
+        if (
+          !context.game.persisted[body.data.playerId] ||
+          !context.game.persisted[body.data.playerId].pars
+        ) {
+          context.game.persisted[body.data.playerId] = {
+            pars: [],
+            scores: [],
+          }
+        }
+
+        const player = context.game.players?.find(
+          (p) => p.playerId === body.data.playerId
+        )
+        if (player) {
+          const hole =
+            selectCourses[context.game.selectedCourse].holes[
+              context.game.courseNumber
+            ]
+          const par = courseInstances[hole].par
+          const score = player.shots
+          context.game.persisted[body.data.playerId].pars[hole] = par
+          const currentScore =
+            context.game.persisted[body.data.playerId].scores[hole]
+          if (!currentScore || score < currentScore) {
+            context.game.persisted[body.data.playerId].scores[hole] = score
+          }
+        }
       }
     }
     for (const body of context.game.world.dynamicBodies) {

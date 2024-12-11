@@ -10,13 +10,18 @@ import {
   Course,
   courseInstances,
   GameActions,
+  PersistedState,
 } from "./logic"
 import { ASSETS } from "./lib/assets"
 import { OnChangeParams, PlayerId, Players } from "rune-sdk"
 import { translations } from "./translates"
 import { MANIA_MODE } from "./gamemode"
 import { UIResources } from "./uiResources"
-import { hideLevelSelect, selectCourse } from "./levelselect"
+import {
+  hideLevelSelect,
+  selectCourse,
+  updateLevelSelectFromState,
+} from "./levelselect"
 
 const nthStrings = ["th", "st", "nd", "rd", "th"]
 
@@ -397,7 +402,9 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
   }
 
   // notification of a new game state from the Rune SDK
-  gameUpdate(update: OnChangeParams<GameState, GameActions, false>): void {
+  gameUpdate(
+    update: OnChangeParams<GameState, GameActions, PersistedState>
+  ): void {
     this.game = update.game
     this.localPlayerId = update.yourPlayerId
     this.players = update.players
@@ -416,6 +423,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
       return
     }
     if (update.game.selectedCourse === -1) {
+      updateLevelSelectFromState(update.game, update.yourPlayerId)
       return
     }
     hideLevelSelect()

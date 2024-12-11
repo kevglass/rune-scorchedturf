@@ -1,3 +1,4 @@
+import { PlayerId } from "rune-sdk"
 import { ASSETS } from "./lib/assets"
 import {
   courseInstances,
@@ -9,6 +10,13 @@ import {
 export function initLevelSelect() {
   selectCourse()
 }
+
+;(document.getElementById("selectedCourse") as HTMLDivElement).addEventListener(
+  "click",
+  () => {
+    selectCourse()
+  }
+)
 
 export function selectCourse() {
   ;(document.getElementById("levelSelect") as HTMLDivElement).style.display =
@@ -31,8 +39,12 @@ export function selectCourse() {
     root.appendChild(img)
     const status = document.createElement("div") as HTMLDivElement
     status.classList.add("courseStatus")
-    status.id = course.id + "-course-status"
     root.appendChild(status)
+    const marker = document.createElement("div") as HTMLDivElement
+    marker.classList.add("courseComplete")
+    marker.id = course.id + "-course-status"
+    marker.style.display = "none"
+    status.appendChild(marker)
     const info = document.createElement("div") as HTMLDivElement
     info.classList.add("courseInfo")
     root.appendChild(info)
@@ -60,6 +72,15 @@ function selectHole(course: SelectCourse) {
     "none"
   ;(document.getElementById("holeSelect") as HTMLDivElement).style.display =
     "block"
+
+  const hole = course.holes[0]
+  ;(document.getElementById("selectedCourseImg") as HTMLImageElement).src =
+    ASSETS["thumbnails/" + (hole + 1) + ".png"]
+  ;(
+    document.getElementById("selectedCourseNumber") as HTMLDivElement
+  ).innerHTML = "COURSE " + (selectCourses.indexOf(course) + 1)
+  ;(document.getElementById("selectedCourseName") as HTMLDivElement).innerHTML =
+    course.name.toUpperCase()
 
   const holeList = document.getElementById("holeList") as HTMLDivElement
   holeList.innerHTML = ""
@@ -135,16 +156,52 @@ function selectHole(course: SelectCourse) {
   }
 }
 
-export function updateLevelSelectFromState(game: GameState) {
+export function updateLevelSelectFromState(
+  game: GameState,
+  localPlayerId: PlayerId | undefined
+) {
+  if (!localPlayerId) {
+    return
+  }
+
+  const persisted = game.persisted?.[localPlayerId]
+  if (!persisted || !persisted.pars || !persisted.scores) {
+    return
+  }
   for (const course of selectCourses) {
     const status = document.getElementById(
       course.id + "-course-status"
     ) as HTMLDivElement
 
+    let completed = 0
     for (const hole of course.holes) {
-      const score = document.getElementById("score-" + hole) as HTMLSpanElement
-      const par = document.getElementById("par-" + hole) as HTMLSpanElement
+      const levelPar = persisted.pars[hole]
+      const currentScore = persisted.scores[hole]
+      if (levelPar && currentScore) {
+        if (currentScore <= levelPar) {
+          completed++
+        }
+
+        const score = document.getElementById("score-" + hole) as HTMLSpanElement
+        const par = document.getElementById("par-" + hole) as HTMLSpanElement
+
+        if (!score || !par) {
+          continue
+        }
+
+        score.innerHTML = "" + currentScore
+        par.innerHTML = "(" + (currentScore - levelPar) + ")"
+        if (currentScore > levelPar) {
+          par.classList.remove("positive")
+          par.classList.add("negative")
+        } else {
+          par.classList.add("positive")
+          par.classList.remove("negative")
+        }
+      }
     }
+
+    status.style.display = completed === 4 ? "block" : "nonee"
   }
 }
 
