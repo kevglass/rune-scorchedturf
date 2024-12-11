@@ -49,11 +49,11 @@ export const selectCourses: SelectCourse[] = [
     id: "tough",
     holes: [8, 9, 10, 11],
   },
-  // {
-  //   name: "Crazy Hard",
-  //   id: "crazy",
-  //   holes: [12, 13, 14, 15],
-  // },
+  {
+    name: "Crazy Hard",
+    id: "crazy",
+    holes: [12, 13, 14, 15],
+  },
 ]
 
 export type PersistedState = {
