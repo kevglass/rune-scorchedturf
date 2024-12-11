@@ -182,7 +182,9 @@ export function updateLevelSelectFromState(
           completed++
         }
 
-        const score = document.getElementById("score-" + hole) as HTMLSpanElement
+        const score = document.getElementById(
+          "score-" + hole
+        ) as HTMLSpanElement
         const par = document.getElementById("par-" + hole) as HTMLSpanElement
 
         if (!score || !par) {
