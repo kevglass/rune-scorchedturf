@@ -12,8 +12,39 @@ export const courses = [
   "course1.svg",
   "course2.svg",
   "course3.svg",
-  "course5.svg",
   "course4.svg",
+  "course5.svg",
+  "course6.svg",
+  "course7.svg",
+  "course8.svg",
+  "course9.svg",
+  "course10.svg",
+  "course11.svg",
+  "course12.svg",
+]
+
+export type SelectCourse = {
+  name: string
+  id: string
+  holes: number[]
+}
+
+export const selectCourses: SelectCourse[] = [
+  {
+    name: "The Good Place",
+    id: "begin",
+    holes: [0, 1, 2, 3],
+  },
+  {
+    name: "Fair to Middlin'",
+    id: "fair",
+    holes: [4, 5, 6, 7],
+  },
+  {
+    name: "Tough Luck",
+    id: "tough",
+    holes: [8, 9, 10, 11],
+  },
 ]
 
 type GameEvent =
@@ -96,14 +127,7 @@ const SVG_COLOR_MAP: Record<string, MaterialType> = {
   "#00ffff": MaterialType.PEG,
   "#ff00ff": MaterialType.WOOD,
   "#f7ba3e": MaterialType.SAND,
-
 }
-
-export const courseInstances: Course[] = []
-for (const name of courses) {
-  courseInstances.push(loadCourse(name))
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSVGTransform(a: any) {
   if (!a) {
@@ -128,8 +152,6 @@ function applyBodyLogic(
   if (body.data.type === MaterialType.BOUNCER) {
     body.data.originalBounds = body.shapes[0].bounds
   }
-  if (body.data.type === MaterialType.GRASS) {
-    }
   if (element.class === "spin") {
     const pin = physics.createCircle(
       world,
@@ -286,6 +308,11 @@ export function loadCourse(name: string): Course {
   }
 }
 
+export const courseInstances: Course[] = []
+for (const name of courses) {
+  courseInstances.push(loadCourse(name))
+}
+
 export interface ActionListener {
   shot(): void
 
@@ -323,6 +350,8 @@ export interface GameState {
   py: number
   power: number
 
+  selectedCourse: number
+  selectedHole: number
   // course: Course;
 }
 
@@ -335,6 +364,7 @@ export type GameActions = {
     power: number
   }) => void
   endTurn: () => void
+  selectLevel: (params: { course: number; hole: number }) => void
 }
 
 declare global {
@@ -369,7 +399,8 @@ function nextTurn(state: GameState): void {
   )
 
   if (possible.length === 0) {
-    if (state.courseNumber >= courses.length - 1) {
+    const limit = state.selectedHole === -1 ? 4 : 1
+    if (state.courseNumber >= limit - 1) {
       state.events.push({
         id: state.nextId++,
         type: "gameOver",
@@ -428,7 +459,8 @@ function removePlayer(state: GameState, id: PlayerId): void {
 
 function loadNextCourse(game: GameState): void {
   game.courseNumber++
-  startCourse(game, courseInstances[game.courseNumber])
+  const hole = selectCourses[game.selectedCourse].holes[game.courseNumber]
+  startCourse(game, courseInstances[hole])
 }
 
 // let totalTime = 0;
@@ -441,7 +473,7 @@ function startCourse(game: GameState, course: Course): void {
     id: game.nextId++,
     type: "newCourse",
     gameTime: Rune.gameTime(),
-    courseNumber: game.courseNumber,
+    courseNumber: selectCourses[game.selectedCourse].holes[game.courseNumber],
   } as NewCourseEvent)
   game.completed = []
   game.world = JSON.parse(JSON.stringify(course.world))
@@ -494,14 +526,13 @@ Rune.initLogic({
       start: course.start,
       par: course.par,
       courseComplete: false,
+      selectedCourse: -1,
+      selectedHole: -1,
     }
 
     for (const player of allPlayerIds) {
       addPlayer(initialState, player)
     }
-
-    nextTurn(initialState)
-    startCourse(initialState, course)
 
     return initialState
   },
@@ -752,6 +783,20 @@ Rune.initLogic({
       if (context.game.whoseTurn === context.playerId) {
         context.game.nextTurnAt = Rune.gameTime() + 1000
       }
+    },
+    selectLevel: (params: { course: number; hole: number }, context) => {
+      // do nothing so far
+      let hole = params.hole
+      if (hole === -1) {
+        hole = selectCourses[params.course].holes[0]
+      }
+
+      context.game.selectedCourse = params.course
+      context.game.selectedHole = params.hole
+      nextTurn(context.game)
+      context.game.courseNumber =
+        selectCourses[params.course].holes.indexOf(hole) - 1
+      loadNextCourse(context.game)
     },
   },
 })

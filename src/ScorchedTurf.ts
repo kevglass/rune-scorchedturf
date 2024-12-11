@@ -16,6 +16,7 @@ import { OnChangeParams, PlayerId, Players } from "rune-sdk"
 import { translations } from "./translates"
 import { MANIA_MODE } from "./gamemode"
 import { UIResources } from "./uiResources"
+import { hideLevelSelect, selectCourse } from "./levelselect"
 
 const nthStrings = ["th", "st", "nd", "rd", "th"]
 
@@ -400,6 +401,24 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
     this.game = update.game
     this.localPlayerId = update.yourPlayerId
     this.players = update.players
+    this.world = undefined
+
+    if (
+      update.event &&
+      update.event.name === "stateSync" &&
+      update.event.isNewGame
+    ) {
+      selectCourse()
+      this.game = update.game
+      this.gameOver = false
+      this.executionCounter = 0
+      this.hasCourseMessage = true
+      return
+    }
+    if (update.game.selectedCourse === -1) {
+      return
+    }
+    hideLevelSelect()
     this.world = update.game.world
 
     this.allPlayerIds = update.allPlayerIds
