@@ -21,6 +21,10 @@ export const courses = [
   "course10.svg",
   "course11.svg",
   "course12.svg",
+  "course13.svg",
+  "course14.svg",
+  "course15.svg",
+  "course16.svg",
 ]
 
 export type SelectCourse = {
@@ -45,6 +49,11 @@ export const selectCourses: SelectCourse[] = [
     id: "tough",
     holes: [8, 9, 10, 11],
   },
+  // {
+  //   name: "Crazy Hard",
+  //   id: "crazy",
+  //   holes: [12, 13, 14, 15],
+  // },
 ]
 
 export type PersistedState = {

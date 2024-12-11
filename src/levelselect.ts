@@ -114,6 +114,7 @@ function selectHole(course: SelectCourse) {
     const complete = document.createElement("div") as HTMLDivElement
     complete.classList.add("holeComplete")
     complete.style.display = "none"
+    complete.id = "hole-complete-" + hole
     status.appendChild(complete)
 
     const label = document.createElement("span") as HTMLSpanElement
@@ -186,7 +187,9 @@ export function updateLevelSelectFromState(
           "score-" + hole
         ) as HTMLSpanElement
         const par = document.getElementById("par-" + hole) as HTMLSpanElement
-
+        const complete = document.getElementById(
+          "hole-complete-" + hole
+        ) as HTMLDivElement
         if (!score || !par) {
           continue
         }
@@ -196,14 +199,16 @@ export function updateLevelSelectFromState(
         if (currentScore > levelPar) {
           par.classList.remove("positive")
           par.classList.add("negative")
+          complete.style.display = "none"
         } else {
           par.classList.add("positive")
           par.classList.remove("negative")
+          complete.style.display = "block"
         }
       }
     }
 
-    status.style.display = completed === 4 ? "block" : "nonee"
+    status.style.display = completed === 4 ? "block" : "none"
   }
 }
 

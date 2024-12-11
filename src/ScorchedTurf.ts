@@ -1532,26 +1532,26 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
       //     graphics.fillRect(body.averageCenter.x - body.boundingBox.x, body.averageCenter.y - body.boundingBox.y, body.boundingBox.x * 2, body.boundingBox.y * 2, "rgba(255,0,0,0.5)");
       // }
 
-      for (const joint of world.joints) {
-        graphics.push()
-        const bodyA = all.find((b) => b.id === joint.bodyA)
-        const bodyB = all.find((b) => b.id === joint.bodyB)
-        if (bodyA && bodyB) {
-          const length = physics.lengthVec2(
-            physics.subtractVec2(bodyA.center, bodyB.center)
-          )
-          graphics.translate(bodyA.center.x, bodyA.center.y)
-          graphics.rotate(
-            Math.atan2(
-              bodyB.center.y - bodyA.center.y,
-              bodyB.center.x - bodyA.center.x
-            )
-          )
-          graphics.drawImage(this.chain, 0, -6, length, 12)
-        }
+      // for (const joint of world.joints) {
+      //   graphics.push()
+      //   const bodyA = all.find((b) => b.id === joint.bodyA)
+      //   const bodyB = all.find((b) => b.id === joint.bodyB)
+      //   if (bodyA && bodyB) {
+      //     const length = physics.lengthVec2(
+      //       physics.subtractVec2(bodyA.center, bodyB.center)
+      //     )
+      //     graphics.translate(bodyA.center.x, bodyA.center.y)
+      //     graphics.rotate(
+      //       Math.atan2(
+      //         bodyB.center.y - bodyA.center.y,
+      //         bodyB.center.x - bodyA.center.x
+      //       )
+      //     )
+      //     graphics.drawImage(this.chain, 0, -6, length, 12)
+      //   }
 
-        graphics.pop()
-      }
+      //   graphics.pop()
+      // }
     }
   }
 }
