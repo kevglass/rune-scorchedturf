@@ -295,6 +295,14 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         rect: graphics.loadTileSet(ASSETS["block.png"], 45, 15),
         circle: graphics.loadImage(ASSETS["peg.png"]),
       },
+      [MaterialType.REDGRASS]: {
+        rect: graphics.loadTileSet(ASSETS["grassred.png"], 45, 15),
+        circle: graphics.loadImage(ASSETS["grassred-round.png"]),
+      },
+      [MaterialType.SAND]: {
+        rect: graphics.loadTileSet(ASSETS["sand.png"], 45, 15),
+        circle: graphics.loadImage(ASSETS["grassred-round.png"]),
+      },
     }
   }
 

@@ -80,10 +80,13 @@ export enum MaterialType {
   BLOCK = 8,
   PEG = 10,
   WOOD = 11,
+  REDGRASS = 12,
+  SAND = 13,
 }
 
 const SVG_COLOR_MAP: Record<string, MaterialType> = {
   "#a5e306": MaterialType.GRASS,
+  "#ff7f00": MaterialType.REDGRASS,
   "#a8cbcc": MaterialType.STONE0,
   "#8bb8be": MaterialType.STONE1,
   "#5b8b95": MaterialType.STONE2,
@@ -92,6 +95,8 @@ const SVG_COLOR_MAP: Record<string, MaterialType> = {
   "#0000ff": MaterialType.BLOCK,
   "#00ffff": MaterialType.PEG,
   "#ff00ff": MaterialType.WOOD,
+  "#f7ba3e": MaterialType.SAND,
+
 }
 
 export const courseInstances: Course[] = []
@@ -123,6 +128,8 @@ function applyBodyLogic(
   if (body.data.type === MaterialType.BOUNCER) {
     body.data.originalBounds = body.shapes[0].bounds
   }
+  if (body.data.type === MaterialType.GRASS) {
+    }
   if (element.class === "spin") {
     const pin = physics.createCircle(
       world,
