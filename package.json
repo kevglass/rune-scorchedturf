@@ -9,8 +9,8 @@
     "build": "npm run lint && tsc && vite build",
     "lint": "eslint src",
     "preview": "vite preview",
-    "deploy": "setMania.sh false && npm run build && rune upload --name 'Mini Golf'",
-    "deployMania": "setMania.sh true && npm run build && rune upload --name 'Mini Golf Mania'",
+    "deploy": "./setMania.sh false && npm run build && npx rune@latest upload --name 'Mini Golf'",
+    "deployMania": "./setMania.sh true && npm run build && npx rune@latest upload --name 'Mini Golf Mania'",
     "upload": "npm run build && npx rune-games-cli@latest upload"
   },
   "dependencies": {
