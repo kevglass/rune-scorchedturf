@@ -6,11 +6,6 @@ import {
   SelectCourse,
   selectCourses,
 } from "./logic"
-
-export function initLevelSelect() {
-  selectCourse()
-}
-
 ;(document.getElementById("selectedCourse") as HTMLDivElement).addEventListener(
   "click",
   () => {

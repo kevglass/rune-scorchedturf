@@ -368,6 +368,7 @@ export interface GameState {
   selectedHole: number
   // course: Course;
   persisted?: Record<string, PersistedState>
+  levelSelect: boolean
 }
 
 export type GameActions = {
@@ -515,8 +516,12 @@ Rune.initLogic({
   maxPlayers: 6,
   persistPlayerData: true,
   reactive: false,
-  setup: (allPlayerIds: PlayerId[]): GameState => {
+  setup: (allPlayerIds: PlayerId[], { game }): GameState => {
     const course = loadCourse(courses[0])
+    const playedBefore =
+      Object.values(game.persisted).find((p) => p.pars !== undefined) !=
+      undefined
+
     const initialState: GameState = {
       gameTime: 0,
       players: [],
@@ -542,12 +547,19 @@ Rune.initLogic({
       start: course.start,
       par: course.par,
       courseComplete: false,
-      selectedCourse: -1,
+      selectedCourse: playedBefore ? -1 : 0,
       selectedHole: -1,
+      levelSelect: playedBefore,
     }
 
     for (const player of allPlayerIds) {
       addPlayer(initialState, player)
+    }
+
+    if (!playedBefore) {
+      nextTurn(initialState)
+      initialState.courseNumber = selectCourses[0].holes.indexOf(0) - 1
+      loadNextCourse(initialState)
     }
 
     return initialState

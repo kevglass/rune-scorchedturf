@@ -1,4 +1,3 @@
-import { initLevelSelect } from "./levelselect"
 import { ScorchedTurf } from "./ScorchedTurf"
 
 window.addEventListener("load", () => {
@@ -6,7 +5,5 @@ window.addEventListener("load", () => {
     // Simple game bootstrap
     const game = new ScorchedTurf()
     game.start()
-
-    initLevelSelect()
   })()
 })

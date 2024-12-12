@@ -415,7 +415,9 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
       update.event.name === "stateSync" &&
       update.event.isNewGame
     ) {
-      selectCourse()
+      if (this.game.levelSelect) {
+        selectCourse()
+      }
       this.game = update.game
       this.gameOver = false
       this.executionCounter = 0

@@ -1,1 +1,1 @@
-export const MANIA_MODE = true
+export const MANIA_MODE = false
