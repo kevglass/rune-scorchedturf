@@ -5,13 +5,13 @@
   <title>Time for Fun, 5</title>
   <rect fill="#5b8b95" height="40.76923" id="svg_79" width="99.69433" x="454.46223" y="1123.82939" stroke="#000"/>
   <rect fill="#5b8b95" height="40.76923" id="svg_78" width="99.69433" x="107.21156" y="1123.82939" stroke="#000"/>
-  <ellipse fill="#8bb8be" cx="1068.58764" cy="877.33654" id="svg_76" rx="9.07033" ry="9.07033" stroke="#000"/>
-  <ellipse fill="#8bb8be" cx="1152.20228" cy="887.69588" id="svg_74" rx="6.8279" ry="6.8279" stroke="#000"/>
-  <ellipse fill="#8bb8be" cx="1079.44775" cy="376.76928" id="svg_73" rx="7.737" ry="7.737" stroke="#000"/>
-  <ellipse fill="#8bb8be" cx="980.7814" cy="486.10225" id="svg_72" rx="7.737" ry="7.737" stroke="#000"/>
-  <ellipse fill="#8bb8be" cx="902.11499" cy="584.10193" id="svg_71" rx="7.737" ry="7.737" stroke="#000"/>
-  <ellipse fill="#8bb8be" cx="824.78191" cy="675.43497" id="svg_70" rx="9.07033" ry="9.07033" stroke="#000"/>
-  <rect fill="#8bb8be" height="327.15285" id="svg_69" width="17.27053" x="1198.31846" y="762.6968" stroke="#000" transform="rotate(50 1206.95 926.273)"/>
+  <ellipse fill="#8bb8be" cx="1072.58764" cy="874.33654" id="svg_76" rx="9.07033" ry="9.07033" stroke="#000"/>
+  <ellipse stroke="#000" fill="#8bb8be" cx="1152.20228" cy="888.69588" id="svg_74" rx="7.8279" ry="7.8279"/>
+  <ellipse fill="#ff00ff" cx="1078.44775" cy="378.76928" id="svg_73" rx="7.737" ry="7.737" stroke="#000"/>
+  <ellipse fill="#ff00ff" cx="977.7814" cy="488.10225" id="svg_72" rx="7.737" ry="7.737" stroke="#000"/>
+  <ellipse fill="#ff00ff" cx="901.11499" cy="586.10193" id="svg_71" rx="7.737" ry="7.737" stroke="#000"/>
+  <ellipse fill="#ff00ff" cx="823.78191" cy="677.43497" id="svg_70" rx="9.07033" ry="9.07033" stroke="#000"/>
+  <rect transform="rotate(50 1210.39 941.392)" stroke="#000" fill="#8bb8be" height="336.12538" id="svg_69" width="17.27053" x="1201.75363" y="773.32965"/>
   <rect fill="#8bb8be" height="248.69131" id="svg_68" width="17.16032" x="1320.49701" y="581.56051" stroke="#000"/>
   <rect fill="#8bb8be" height="98.90109" id="svg_67" width="14.43304" x="1144.48302" y="787.71436" stroke="#000"/>
   <rect fill="#8bb8be" height="108.6035" id="svg_66" width="11.00647" x="1225.11165" y="687.4945" stroke="#000"/>
@@ -22,7 +22,7 @@
   <ellipse class="grass1" cx="570.30916" cy="1063.26483" fill="#000000" id="svg_77" rx="20" ry="20" stroke="#000"/>
   <ellipse fill="#8bb8be" cx="578.29933" cy="1112.71738" id="svg_54" rx="43.84616" ry="43.84616" stroke="#000"/>
   <rect fill="#5b8b95" height="40.76923" id="svg_8" width="496.83946" x="81.49713" y="1116.68649" stroke="#000"/>
-  <rect fill="#8bb8be" height="322.75027" id="svg_20" width="15.25917" x="1099.69982" y="428.86882" stroke="#000" transform="rotate(-50 1107.33 590.244)"/>
+  <rect transform="rotate(-50 1105.33 590.244)" fill="#8bb8be" height="322.75027" id="svg_20" width="15.25917" x="1097.69982" y="428.86882" stroke="#000"/>
   <ellipse class="tree1" cx="135.01733" cy="1068.78907" fill="#000000" id="svg_2" rx="20" ry="20" stroke="#000"/>
   <ellipse class="grass1" cx="201.49837" cy="1066.12199" fill="#000000" id="svg_5" rx="20" ry="20" stroke="#000"/>
   <ellipse cx="328.14496" cy="978.44464" fill="#00ff00" id="svg_16" rx="20" ry="20" stroke="#000"/>

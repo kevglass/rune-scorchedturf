@@ -3,10 +3,10 @@
  <title>course1</title>
  <g class="layer">
   <title>Too Simple, 5</title>
-  <ellipse class="tree1" cx="1335.25" cy="345.11" fill="#000000" id="svg_33" rx="20" ry="20" stroke="#000"/>
-  <ellipse class="grass1" cx="903.11" cy="511.18" fill="#000000" id="svg_17" rx="20" ry="20" stroke="#000" transform="matrix(1 0 0 1 0 0)"/>
+  <ellipse class="tree2" cx="1335.25" cy="350.47" fill="#000000" id="svg_33" rx="20" ry="20" stroke="#000" transform="matrix(1 0 0 1 0 0)"/>
+  <ellipse class="grass1" cx="892.4" cy="520.11" fill="#000000" id="svg_17" rx="20" ry="20" stroke="#000" transform="matrix(1 0 0 1 0 0)"/>
   <rect fill="#5b8b95" height="40" id="svg_92" stroke="#000" width="589.71" x="1042" y="463.94"/>
-  <ellipse class="grass2" cx="1934.57" cy="582.98" fill="#000000" id="svg_6" rx="20" ry="20" stroke="#000"/>
+  <ellipse class="grass2" cx="1932.78" cy="590.12" fill="#000000" id="svg_6" rx="20" ry="20" stroke="#000"/>
   <rect fill="#8bb8be" height="50" id="svg_85" stroke="#000" width="512.86" x="1556.26" y="603.92"/>
   <rect fill="#487d8f" height="40" id="svg_83" stroke="#000" width="348.57" x="1615.69" y="669.58"/>
   <rect fill="#5b8b95" height="40" id="svg_84" stroke="#000" width="451.71" x="1580.26" y="653.92"/>
@@ -37,8 +37,8 @@
   <rect fill="#a5e306" height="23.53" id="svg_87" stroke="#000" transform="rotate(-17 1348.26 974.541)" width="100.63" x="1297.95" y="962.78"/>
   <rect fill="#a5e306" height="40" id="svg_4" stroke="#000" width="222.52" x="1388.82" y="946.74"/>
   <rect fill="#5b8b95" height="30" id="svg_8" stroke="#000" width="284.29" x="1528.61" y="973.18"/>
-  <ellipse class="tree1" cx="2341.11" cy="966.75" fill="#000000" id="svg_2" rx="20" ry="20" stroke="#000"/>
-  <ellipse class="grass2" cx="1725.06" cy="910.71" fill="#000000" id="svg_18" rx="20" ry="20" stroke="#000"/>
+  <ellipse class="tree3" cx="2341.11" cy="966.75" fill="#000000" id="svg_2" rx="20" ry="20" stroke="#000" transform="matrix(1 0 0 1 0 0)"/>
+  <ellipse class="grass2" cx="1725.06" cy="916.07" fill="#000000" id="svg_18" rx="20" ry="20" stroke="#000" transform="matrix(1 0 0 1 0 0)"/>
   <rect fill="#a5e306" height="30" id="svg_13" stroke="#000" width="235.71" x="1609.18" y="913.18"/>
   <rect fill="#a5e306" height="50" id="svg_26" stroke="#000" width="120" x="680" y="1078.61"/>
   <rect fill="#487d8f" height="30" id="svg_40" stroke="#000" width="286" x="2134.34" y="1060.07"/>
@@ -95,6 +95,5 @@
   <rect fill="#a5e306" height="50" id="svg_73" stroke="#000" width="120" x="1152" y="345.94"/>
   <rect fill="#a5e306" height="35.07" id="svg_74" stroke="#000" transform="rotate(30 1534.42 428.674)" width="264.78" x="1402.03" y="411.14"/>
   <rect fill="#a5e306" height="28" id="svg_88" stroke="#000" width="156.52" x="1238.82" y="974.74"/>
-  <ellipse class="tree1" cx="1337.92" cy="347.79" fill="#000000" id="svg_36" rx="20" ry="20" stroke="#000"/>
  </g>
 </svg>
