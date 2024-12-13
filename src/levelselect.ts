@@ -44,14 +44,14 @@ export function selectCourse() {
       img.classList.add("courseImage")
       courseImages.appendChild(img)
     }
-    const status = document.createElement("div") as HTMLDivElement
-    status.classList.add("courseStatus")
-    root.appendChild(status)
-    const marker = document.createElement("div") as HTMLDivElement
-    marker.classList.add("courseComplete")
-    marker.id = course.id + "-course-status"
-    marker.style.display = "none"
-    status.appendChild(marker)
+    // const status = document.createElement("div") as HTMLDivElement
+    // status.classList.add("courseStatus")
+    // root.appendChild(status)
+    // const marker = document.createElement("div") as HTMLDivElement
+    // marker.classList.add("courseComplete")
+    // marker.id = course.id + "-course-status"
+    // marker.style.display = "none"
+    // status.appendChild(marker)
     const info = document.createElement("div") as HTMLDivElement
     info.classList.add("courseInfo")
     root.appendChild(info)
@@ -177,9 +177,9 @@ export function updateLevelSelectFromState(
     return
   }
   for (const course of selectCourses) {
-    const status = document.getElementById(
-      course.id + "-course-status"
-    ) as HTMLDivElement
+    // const status = document.getElementById(
+    //   course.id + "-course-status"
+    // ) as HTMLDivElement
 
     let completed = 0
     for (const hole of course.holes) {
@@ -215,7 +215,7 @@ export function updateLevelSelectFromState(
       }
     }
 
-    status.style.display = completed === 4 ? "block" : "none"
+    // status.style.display = completed === 4 ? "block" : "none"
   }
 }
 
