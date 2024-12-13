@@ -913,7 +913,8 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         return p.data.playerId === this.localPlayerId
       })
       if (MANIA_MODE) {
-        this.myBodyAtRest = !myBody || (myBody && myBody.restingTime > REST_TIME) === true
+        this.myBodyAtRest =
+          !myBody || (myBody && myBody.restingTime > REST_TIME) === true
         if (this.myBodyAtRest) {
           this.showSpinner = true
         }
