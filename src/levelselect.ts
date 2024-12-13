@@ -12,6 +12,12 @@ import {
     selectCourse()
   }
 )
+;(document.getElementById("backButton") as HTMLDivElement).addEventListener(
+  "click",
+  () => {
+    selectCourse()
+  }
+)
 
 export function selectCourse() {
   ;(document.getElementById("levelSelect") as HTMLDivElement).style.display =
@@ -28,10 +34,16 @@ export function selectCourse() {
   for (const course of selectCourses) {
     const root = document.createElement("div") as HTMLDivElement
     root.classList.add("course")
-    const img = document.createElement("img") as HTMLImageElement
-    img.src = ASSETS["thumbnails/" + (course.holes[0] + 1) + ".png"]
-    img.classList.add("courseImage")
-    root.appendChild(img)
+
+    const courseImages = document.createElement("div") as HTMLDivElement
+    courseImages.classList.add("courseImageList")
+    root.appendChild(courseImages)
+    for (let i = 0; i < 4; i++) {
+      const img = document.createElement("img") as HTMLImageElement
+      img.src = ASSETS["thumbnails/" + (course.holes[i] + 1) + ".png"]
+      img.classList.add("courseImage")
+      courseImages.appendChild(img)
+    }
     const status = document.createElement("div") as HTMLDivElement
     status.classList.add("courseStatus")
     root.appendChild(status)
