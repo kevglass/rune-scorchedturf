@@ -11,6 +11,7 @@ import {
   courseInstances,
   GameActions,
   PersistedState,
+  REST_TIME,
 } from "./logic"
 import { ASSETS } from "./lib/assets"
 import { OnChangeParams, PlayerId, Players } from "rune-sdk"
@@ -108,7 +109,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
   courseNumber = -1
   completed: string[] = []
 
-  currentBody?: physics.Body
+  currentBody?: physics.DynamicRigidBody
 
   lastSink?: Sink
   gameOver = false
@@ -495,8 +496,10 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
 
     if (this.course) {
       if (!physics.atRest(this.world)) {
-        this.dragOffsetX = 0
-        this.dragOffsetY = 0
+        if (!MANIA_MODE) {
+          this.dragOffsetX = 0
+          this.dragOffsetY = 0
+        }
       }
       if (
         physics.atRest(this.world) &&
@@ -831,7 +834,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
       }
 
       const atRest = physics.atRest(this.world)
-      if (atRest) {
+      if (atRest || (MANIA_MODE && this.myBodyAtRest)) {
         this.cameraX = this.cameraX * 0.7 + this.vx * 0.3
         this.cameraY = this.cameraY * 0.7 + this.vy * 0.3
       } else {
@@ -910,7 +913,7 @@ export class ScorchedTurf implements graphics.Game, ActionListener {
         return p.data.playerId === this.localPlayerId
       })
       if (MANIA_MODE) {
-        this.myBodyAtRest = (myBody && myBody.restingTime > 1) === true
+        this.myBodyAtRest = !myBody || (myBody && myBody.restingTime > REST_TIME) === true
         if (this.myBodyAtRest) {
           this.showSpinner = true
         }

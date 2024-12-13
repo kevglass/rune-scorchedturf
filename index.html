@@ -127,10 +127,19 @@
       margin-bottom: 4%;
     }
 
-    .courseImage {
+    .courseImageList {
       width: 100%;
       height: 80%;
       border-radius: 5vh;
+      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1px;
+    }
+
+    .courseImage {
+      width: calc(50% - 1px);
+      height: calc(50% - 1px);
     }
 
     .courseStatus {
@@ -300,6 +309,25 @@
       text-align: center;
       text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black
     }
+
+  #backButton {
+    position: absolute;
+    width: 15%;
+    bottom: 25%;
+    left: 10%;
+    font-family: "Snake";
+    font-size: 3vh;
+    background: linear-gradient(to bottom, #339EC4, #1B4757);
+    border-radius: 3vh;
+  }
+
+  #backButtonLabel {
+    color: #C2FF24;
+    padding: 3vh;
+    padding-top: 4vh;
+    text-align: center;
+    text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black
+  }
   </style>
 </head>
 
@@ -415,6 +443,7 @@
       </div>
 
       <div id="playAll"><div id="playAllLabel">PLAY ALL</div></div>
+      <div id="backButton"><div id="backButtonLabel">BACK</div></div>
     </div>
   </div>
   <script type="module" src="/src/logic.ts"></script>

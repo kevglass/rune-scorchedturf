@@ -7,6 +7,7 @@ import { MANIA_MODE } from "./gamemode"
 export const ballSize = 18
 export const maxPower = 200
 export const goalSize = 30
+export const REST_TIME = 0.5
 
 export const courses = [
   "course1.svg",
@@ -187,7 +188,7 @@ export function loadCourse(name: string): Course {
   const content = ASSETS[name]
   const document = xml.parseXml(content)
 
-  const world = physics.createWorld(physics.newVec2(0, 200))
+  const world = physics.createWorld(physics.newVec2(0, 200), REST_TIME)
   // global friction
   world.damp = world.angularDamp = 0.94
   world.jointRestriction = 5
